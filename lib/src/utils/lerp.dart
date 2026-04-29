@@ -143,6 +143,30 @@ List<PieChartStackSegmentData>? lerpPieChartStackSegmentDataList(
 ) =>
     lerpList(a, b, t, lerp: PieChartStackSegmentData.lerp);
 
+/// Lerps [GaugeRing] list based on [t] value, check [Tween.lerp].
+List<GaugeRing>? lerpGaugeRingList(
+  List<GaugeRing>? a,
+  List<GaugeRing>? b,
+  double t,
+) =>
+    lerpList(a, b, t, lerp: GaugeRing.lerp);
+
+/// Lerps [GaugeZone] list based on [t] value, check [Tween.lerp].
+List<GaugeZone>? lerpGaugeZoneList(
+  List<GaugeZone>? a,
+  List<GaugeZone>? b,
+  double t,
+) =>
+    lerpList(a, b, t, lerp: GaugeZone.lerp);
+
+/// Lerps [GaugePointer] list based on [t] value, check [Tween.lerp].
+List<GaugePointer>? lerpGaugePointerList(
+  List<GaugePointer>? a,
+  List<GaugePointer>? b,
+  double t,
+) =>
+    lerpList(a, b, t, lerp: GaugePointer.lerp);
+
 /// Lerps [ScatterSpot] list based on [t] value, check [Tween.lerp].
 List<ScatterSpot>? lerpScatterSpotList(
   List<ScatterSpot>? a,
