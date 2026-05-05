@@ -1,5 +1,5 @@
-import 'package:fl_chart/src/chart/radar_chart/radar_chart_data.dart';
-import 'package:fl_chart/src/chart/radar_chart/radar_chart_renderer.dart';
+import 'package:better_fl_chart/src/chart/radar_chart/radar_chart_data.dart';
+import 'package:better_fl_chart/src/chart/radar_chart/radar_chart_renderer.dart';
 import 'package:flutter/material.dart';
 
 /// Renders a radar chart as a widget, using provided [RadarChartData].

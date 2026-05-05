@@ -1,12 +1,12 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/axis_chart_helper.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/side_titles/side_titles_flex.dart';
-import 'package:fl_chart/src/extensions/bar_chart_data_extension.dart';
-import 'package:fl_chart/src/extensions/edge_insets_extension.dart';
-import 'package:fl_chart/src/extensions/fl_border_data_extension.dart';
-import 'package:fl_chart/src/extensions/fl_titles_data_extension.dart';
-import 'package:fl_chart/src/extensions/size_extension.dart';
-import 'package:fl_chart/src/utils/utils.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/axis_chart_helper.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/side_titles/side_titles_flex.dart';
+import 'package:better_fl_chart/src/extensions/bar_chart_data_extension.dart';
+import 'package:better_fl_chart/src/extensions/edge_insets_extension.dart';
+import 'package:better_fl_chart/src/extensions/fl_border_data_extension.dart';
+import 'package:better_fl_chart/src/extensions/fl_titles_data_extension.dart';
+import 'package:better_fl_chart/src/extensions/size_extension.dart';
+import 'package:better_fl_chart/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 
 class SideTitlesWidget extends StatefulWidget {

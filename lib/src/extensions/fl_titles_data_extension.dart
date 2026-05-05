@@ -1,5 +1,5 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:fl_chart/src/extensions/side_titles_extension.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
+import 'package:better_fl_chart/src/extensions/side_titles_extension.dart';
 import 'package:flutter/widgets.dart';
 
 extension FlTitlesDataExtension on FlTitlesData {

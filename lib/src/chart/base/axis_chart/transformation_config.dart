@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/chart/base/axis_chart/scale_axis.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/scale_axis.dart';
 import 'package:flutter/widgets.dart';
 
 /// Configuration for the transformation of an axis-based chart.

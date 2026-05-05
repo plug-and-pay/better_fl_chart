@@ -6,8 +6,8 @@
 import 'dart:typed_data' as _i5;
 import 'dart:ui' as _i2;
 
-import 'package:fl_chart/fl_chart.dart' as _i3;
-import 'package:fl_chart/src/utils/utils.dart' as _i6;
+import 'package:better_fl_chart/better_fl_chart.dart' as _i3;
+import 'package:better_fl_chart/src/utils/utils.dart' as _i6;
 import 'package:flutter/material.dart' as _i4;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i7;

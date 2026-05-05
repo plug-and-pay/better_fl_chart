@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-import 'package:fl_chart/fl_chart.dart';
-import 'package:fl_chart/src/chart/base/line.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
+import 'package:better_fl_chart/src/chart/base/line.dart';
 import 'package:flutter/material.dart';
 
 const BarAreaSpotsLine barAreaSpotsLine1 =

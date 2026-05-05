@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:fl_chart/src/chart/bar_chart/bar_chart_data.dart';
+import 'package:better_fl_chart/src/chart/bar_chart/bar_chart_data.dart';
 
 /// Contains anything that helps BarChart works
 class BarChartHelper {

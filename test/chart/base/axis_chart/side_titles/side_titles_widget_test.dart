@@ -1,6 +1,6 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:fl_chart/src/chart/bar_chart/bar_chart_helper.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/side_titles/side_titles_widget.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
+import 'package:better_fl_chart/src/chart/bar_chart/bar_chart_helper.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/side_titles/side_titles_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

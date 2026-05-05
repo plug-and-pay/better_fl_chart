@@ -1,4 +1,4 @@
-import 'package:fl_chart/fl_chart.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
 import 'package:fl_chart_app/presentation/resources/app_colors.dart';
 import 'package:flutter/material.dart';
 

@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:fl_chart/fl_chart.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
 import 'package:flutter/material.dart';
 
 @visibleForTesting

@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/chart/scatter_chart/scatter_chart_data.dart';
+import 'package:better_fl_chart/src/chart/scatter_chart/scatter_chart_data.dart';
 
 /// Contains anything that helps ScatterChart works
 class ScatterChartHelper {

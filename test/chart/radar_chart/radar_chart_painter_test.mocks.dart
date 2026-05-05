@@ -6,9 +6,9 @@
 import 'dart:typed_data' as _i5;
 import 'dart:ui' as _i2;
 
-import 'package:fl_chart/fl_chart.dart' as _i7;
-import 'package:fl_chart/src/utils/canvas_wrapper.dart' as _i6;
-import 'package:fl_chart/src/utils/utils.dart' as _i8;
+import 'package:better_fl_chart/better_fl_chart.dart' as _i7;
+import 'package:better_fl_chart/src/utils/canvas_wrapper.dart' as _i6;
+import 'package:better_fl_chart/src/utils/utils.dart' as _i8;
 import 'package:flutter/cupertino.dart' as _i3;
 import 'package:flutter/foundation.dart' as _i4;
 import 'package:mockito/mockito.dart' as _i1;

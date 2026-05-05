@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/chart/candlestick_chart/candlestick_chart_data.dart';
+import 'package:better_fl_chart/src/chart/candlestick_chart/candlestick_chart_data.dart';
 
 /// Contains anything that helps CandlestickChart works
 class CandlestickChartHelper {

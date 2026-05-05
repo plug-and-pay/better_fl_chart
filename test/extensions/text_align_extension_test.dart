@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/extensions/text_align_extension.dart';
+import 'package:better_fl_chart/src/extensions/text_align_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

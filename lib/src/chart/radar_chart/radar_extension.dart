@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/chart/radar_chart/radar_chart_data.dart';
+import 'package:better_fl_chart/src/chart/radar_chart/radar_chart_data.dart';
 
 /// Defines extensions on the [List<RadarDataSet>]
 extension DashedPath on List<RadarDataSet> {

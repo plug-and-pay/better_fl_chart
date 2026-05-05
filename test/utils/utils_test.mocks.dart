@@ -5,7 +5,7 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:ui' as _i2;
 
-import 'package:fl_chart/src/utils/utils.dart' as _i5;
+import 'package:better_fl_chart/src/utils/utils.dart' as _i5;
 import 'package:flutter/foundation.dart' as _i4;
 import 'package:flutter/material.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;

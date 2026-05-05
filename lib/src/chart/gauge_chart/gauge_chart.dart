@@ -1,5 +1,5 @@
-import 'package:fl_chart/src/chart/gauge_chart/gauge_chart_data.dart';
-import 'package:fl_chart/src/chart/gauge_chart/gauge_chart_renderer.dart';
+import 'package:better_fl_chart/src/chart/gauge_chart/gauge_chart_data.dart';
+import 'package:better_fl_chart/src/chart/gauge_chart/gauge_chart_renderer.dart';
 import 'package:flutter/widgets.dart';
 
 class GaugeChart extends ImplicitlyAnimatedWidget {

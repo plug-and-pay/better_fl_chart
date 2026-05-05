@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/extensions/fl_titles_data_extension.dart';
+import 'package:better_fl_chart/src/extensions/fl_titles_data_extension.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 

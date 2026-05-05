@@ -1,8 +1,8 @@
-import 'package:fl_chart/src/chart/base/base_chart/base_chart_painter.dart';
-import 'package:fl_chart/src/chart/base/base_chart/render_base_chart.dart';
-import 'package:fl_chart/src/chart/gauge_chart/gauge_chart_data.dart';
-import 'package:fl_chart/src/chart/gauge_chart/gauge_chart_painter.dart';
-import 'package:fl_chart/src/utils/canvas_wrapper.dart';
+import 'package:better_fl_chart/src/chart/base/base_chart/base_chart_painter.dart';
+import 'package:better_fl_chart/src/chart/base/base_chart/render_base_chart.dart';
+import 'package:better_fl_chart/src/chart/gauge_chart/gauge_chart_data.dart';
+import 'package:better_fl_chart/src/chart/gauge_chart/gauge_chart_painter.dart';
+import 'package:better_fl_chart/src/utils/canvas_wrapper.dart';
 import 'package:flutter/widgets.dart';
 
 // coverage:ignore-start

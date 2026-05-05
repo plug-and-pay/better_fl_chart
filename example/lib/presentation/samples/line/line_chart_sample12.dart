@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fl_chart/fl_chart.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
 import 'package:fl_chart_app/presentation/presentation_utils.dart';
 import 'package:fl_chart_app/presentation/resources/app_colors.dart';
 import 'package:fl_chart_app/util/extensions/color_extensions.dart';

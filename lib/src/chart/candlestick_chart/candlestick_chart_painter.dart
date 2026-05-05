@@ -1,8 +1,8 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/axis_chart_painter.dart';
-import 'package:fl_chart/src/chart/base/base_chart/base_chart_painter.dart';
-import 'package:fl_chart/src/utils/canvas_wrapper.dart';
-import 'package:fl_chart/src/utils/utils.dart';
+import 'package:better_fl_chart/better_fl_chart.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/axis_chart_painter.dart';
+import 'package:better_fl_chart/src/chart/base/base_chart/base_chart_painter.dart';
+import 'package:better_fl_chart/src/utils/canvas_wrapper.dart';
+import 'package:better_fl_chart/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 
 /// Paints [CandlestickChartData] in the canvas, it can be used in a [CustomPainter]

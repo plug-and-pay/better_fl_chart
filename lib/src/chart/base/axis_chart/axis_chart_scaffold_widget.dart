@@ -1,9 +1,9 @@
-import 'package:fl_chart/src/chart/base/axis_chart/axis_chart_data.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/scale_axis.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/side_titles/side_titles_widget.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/transformation_config.dart';
-import 'package:fl_chart/src/chart/base/custom_interactive_viewer.dart';
-import 'package:fl_chart/src/extensions/fl_titles_data_extension.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/axis_chart_data.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/scale_axis.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/side_titles/side_titles_widget.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/transformation_config.dart';
+import 'package:better_fl_chart/src/chart/base/custom_interactive_viewer.dart';
+import 'package:better_fl_chart/src/extensions/fl_titles_data_extension.dart';
 import 'package:flutter/material.dart';
 
 /// A builder to build a chart.

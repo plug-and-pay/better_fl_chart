@@ -2,11 +2,11 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:better_fl_chart/better_fl_chart.dart';
+import 'package:better_fl_chart/src/extensions/color_extension.dart';
+import 'package:better_fl_chart/src/utils/lerp.dart';
+import 'package:better_fl_chart/src/utils/utils.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:fl_chart/src/extensions/color_extension.dart';
-import 'package:fl_chart/src/utils/lerp.dart';
-import 'package:fl_chart/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 
 /// [BarChart] needs this class to render itself.

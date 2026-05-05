@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/chart/pie_chart/pie_chart_data.dart';
+import 'package:better_fl_chart/src/chart/pie_chart/pie_chart_data.dart';
 import 'package:flutter/widgets.dart';
 
 extension PieChartSectionDataListExtension on List<PieChartSectionData> {

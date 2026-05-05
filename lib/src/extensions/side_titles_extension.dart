@@ -1,4 +1,4 @@
-import 'package:fl_chart/src/chart/base/axis_chart/axis_chart_data.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/axis_chart_data.dart';
 
 extension SideTitlesExtension on AxisTitles {
   double get totalReservedSize {

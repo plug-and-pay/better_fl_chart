@@ -1,5 +1,5 @@
-import 'package:fl_chart/src/chart/base/axis_chart/scale_axis.dart';
-import 'package:fl_chart/src/chart/base/axis_chart/transformation_config.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/scale_axis.dart';
+import 'package:better_fl_chart/src/chart/base/axis_chart/transformation_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,7 +1,7 @@
-import 'package:fl_chart/src/chart/base/base_chart/base_chart_data.dart';
-import 'package:fl_chart/src/chart/base/base_chart/fl_touch_event.dart';
-import 'package:fl_chart/src/chart/base/base_chart/render_base_chart.dart';
-import 'package:fl_chart/src/chart/line_chart/line_chart_data.dart';
+import 'package:better_fl_chart/src/chart/base/base_chart/base_chart_data.dart';
+import 'package:better_fl_chart/src/chart/base/base_chart/fl_touch_event.dart';
+import 'package:better_fl_chart/src/chart/base/base_chart/render_base_chart.dart';
+import 'package:better_fl_chart/src/chart/line_chart/line_chart_data.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';

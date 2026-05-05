@@ -1,3 +1,43 @@
+# better_fl_chart
+
+Plug-and-Pay's private fork of [fl_chart](https://github.com/imaNNeo/fl_chart).
+
+## Why this fork exists
+
+Carries small modifications we need that aren't (yet) in upstream. Current diff vs. upstream:
+
+- **`LineChartBarData.clampCurveToChartBounds`** — when `isCurved: true`, clamps the cubic Bézier control points so the curve cannot extend past the top/bottom of the chart. Unlike upstream's `preventCurveOverShooting` (which zeros tangents and produces ugly flat segments), this only shrinks the tangent magnitude as much as needed, preserving smoothness everywhere else.
+
+## Usage
+
+In your Flutter project's `pubspec.yaml`:
+
+```yaml
+dependencies:
+  better_fl_chart:
+    git:
+      url: git@github.com:plug-and-pay/better_fl_chart.git
+      ref: main
+```
+
+Then import it as:
+
+```dart
+import 'package:better_fl_chart/better_fl_chart.dart';
+```
+
+The public API is otherwise identical to upstream `fl_chart` — same widgets, same data classes, same options.
+
+## Keeping in sync with upstream
+
+See [UPSTREAM.md](./UPSTREAM.md) for how to pull in changes from `imaNNeo/fl_chart`.
+
+---
+
+The remainder of this file is the upstream README, kept for reference.
+
+---
+
 ![FL Chart Logo](https://github.com/imaNNeo/fl_chart/raw/main/repo_files/images/landing_logo.png)
 
 [![pub package](https://img.shields.io/pub/v/fl_chart.svg)](https://pub.dartlang.org/packages/fl_chart)

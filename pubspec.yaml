@@ -1,10 +1,10 @@
-name: fl_chart
-description: A highly customizable Flutter chart library that supports Line Chart, Bar Chart, Pie Chart, Scatter Chart, and Radar Chart.
+name: better_fl_chart
+description: Plug-and-Pay fork of fl_chart with custom tweaks (e.g. clampCurveToChartBounds for curved line charts).
 version: 1.2.0
-homepage: https://flchart.dev/
-repository: https://github.com/imaNNeo/fl_chart
-issue_tracker: https://github.com/imaNNeo/fl_chart/issues
-documentation: https://github.com/imaNNeo/fl_chart
+homepage: https://github.com/plug-and-pay/better_fl_chart
+repository: https://github.com/plug-and-pay/better_fl_chart
+issue_tracker: https://github.com/plug-and-pay/better_fl_chart/issues
+documentation: https://github.com/plug-and-pay/better_fl_chart
 
 environment:
   sdk: ">=3.6.2 <4.0.0"
@@ -25,7 +25,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   mockito: ^5.5.1
-  very_good_analysis: ^10.2.0
+  very_good_analysis: ^10.1.0
 
 screenshots:
   - description: "FL Chart Logo"

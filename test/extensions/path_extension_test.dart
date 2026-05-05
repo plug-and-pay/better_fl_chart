@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-import 'package:fl_chart/src/extensions/path_extension.dart';
-import 'package:fl_chart/src/utils/path_drawing/dash_path.dart';
+import 'package:better_fl_chart/src/extensions/path_extension.dart';
+import 'package:better_fl_chart/src/utils/path_drawing/dash_path.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
