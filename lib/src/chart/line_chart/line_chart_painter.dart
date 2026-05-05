@@ -625,6 +625,18 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
         }
       }
 
+      if (barData.clampCurveToChartBounds && barData.isCurved) {
+        // Keep both control points within the vertical drawable area
+        // [0, viewSize.height] by shrinking temp.dy as little as possible.
+        // controlPoint1.dy = previous.dy + temp.dy
+        // controlPoint2.dy = current.dy  - temp.dy
+        final lo = max(-previous.dy, current.dy - viewSize.height);
+        final hi = min(viewSize.height - previous.dy, current.dy);
+        if (lo <= hi) {
+          temp = Offset(temp.dx, temp.dy.clamp(lo, hi));
+        }
+      }
+
       final controlPoint2 = current - temp;
 
       path.cubicTo(

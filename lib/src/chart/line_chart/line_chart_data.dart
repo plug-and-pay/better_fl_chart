@@ -247,6 +247,7 @@ class LineChartBarData with EquatableMixin {
     this.curveSmoothness = 0.35,
     this.preventCurveOverShooting = false,
     this.preventCurveOvershootingThreshold = 10.0,
+    this.clampCurveToChartBounds = false,
     this.isStrokeCapRound = false,
     this.isStrokeJoinRound = false,
     BarAreaData? belowBarData,
@@ -356,6 +357,14 @@ class LineChartBarData with EquatableMixin {
   /// Applies threshold for [preventCurveOverShooting] algorithm.
   final double preventCurveOvershootingThreshold;
 
+  /// If true, clamps the cubic Bézier control points so the curve cannot
+  /// extend past the top or bottom of the chart's drawable area. Unlike
+  /// [preventCurveOverShooting], which zeros the tangent and produces
+  /// noticeably flat segments near low/high spots, this only shrinks the
+  /// tangent magnitude as much as needed to keep the curve within bounds,
+  /// preserving smoothness wherever possible.
+  final bool clampCurveToChartBounds;
+
   /// Determines the style of line's cap.
   final bool isStrokeCapRound;
 
@@ -411,6 +420,7 @@ class LineChartBarData with EquatableMixin {
           b.preventCurveOvershootingThreshold,
           t,
         )!,
+        clampCurveToChartBounds: b.clampCurveToChartBounds,
         dotData: FlDotData.lerp(a.dotData, b.dotData, t),
         errorIndicatorData: FlErrorIndicatorData.lerp(
           a.errorIndicatorData,
@@ -442,6 +452,7 @@ class LineChartBarData with EquatableMixin {
     double? curveSmoothness,
     bool? preventCurveOverShooting,
     double? preventCurveOvershootingThreshold,
+    bool? clampCurveToChartBounds,
     bool? isStrokeCapRound,
     bool? isStrokeJoinRound,
     BarAreaData? belowBarData,
@@ -468,6 +479,8 @@ class LineChartBarData with EquatableMixin {
             preventCurveOverShooting ?? this.preventCurveOverShooting,
         preventCurveOvershootingThreshold: preventCurveOvershootingThreshold ??
             this.preventCurveOvershootingThreshold,
+        clampCurveToChartBounds:
+            clampCurveToChartBounds ?? this.clampCurveToChartBounds,
         isStrokeCapRound: isStrokeCapRound ?? this.isStrokeCapRound,
         isStrokeJoinRound: isStrokeJoinRound ?? this.isStrokeJoinRound,
         belowBarData: belowBarData ?? this.belowBarData,
@@ -494,6 +507,7 @@ class LineChartBarData with EquatableMixin {
         curveSmoothness,
         preventCurveOverShooting,
         preventCurveOvershootingThreshold,
+        clampCurveToChartBounds,
         isStrokeCapRound,
         isStrokeJoinRound,
         belowBarData,
