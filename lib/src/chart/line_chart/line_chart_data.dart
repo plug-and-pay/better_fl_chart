@@ -261,6 +261,7 @@ class LineChartBarData with EquatableMixin {
     this.isStepLineChart = false,
     this.lineChartStepData = const LineChartStepData(),
     this.glowData = const LineGlowData(),
+    this.glowAnchor,
   })  : color =
             color ?? ((color == null && gradient == null) ? Colors.cyan : null),
         belowBarData = belowBarData ?? BarAreaData(),
@@ -404,6 +405,15 @@ class LineChartBarData with EquatableMixin {
   /// near each spot in [showingIndicators]. See [LineGlowData].
   final LineGlowData glowData;
 
+  /// Pixel-space center for the glow effect. The built-in touch handler in
+  /// [LineChart] keeps this in sync with the pointer position so the glow
+  /// follows the finger smoothly as the user drags. When null, the glow
+  /// falls back to centering on each spot in [showingIndicators].
+  ///
+  /// Lerped via [Offset.lerp] so the surrounding [ImplicitlyAnimatedWidget]
+  /// tween produces a trailing "snake" motion as the pointer moves.
+  final Offset? glowAnchor;
+
   /// Lerps a [LineChartBarData] based on [t] value, check [Tween.lerp].
   static LineChartBarData lerp(
     LineChartBarData a,
@@ -443,6 +453,7 @@ class LineChartBarData with EquatableMixin {
         lineChartStepData:
             LineChartStepData.lerp(a.lineChartStepData, b.lineChartStepData, t),
         glowData: LineGlowData.lerp(a.glowData, b.glowData, t),
+        glowAnchor: Offset.lerp(a.glowAnchor, b.glowAnchor, t),
       );
 
   /// Copies current [LineChartBarData] to a new [LineChartBarData],
@@ -472,6 +483,7 @@ class LineChartBarData with EquatableMixin {
     bool? isStepLineChart,
     LineChartStepData? lineChartStepData,
     LineGlowData? glowData,
+    Offset? glowAnchor,
   }) =>
       LineChartBarData(
         spots: spots ?? this.spots,
@@ -500,6 +512,7 @@ class LineChartBarData with EquatableMixin {
         isStepLineChart: isStepLineChart ?? this.isStepLineChart,
         lineChartStepData: lineChartStepData ?? this.lineChartStepData,
         glowData: glowData ?? this.glowData,
+        glowAnchor: glowAnchor ?? this.glowAnchor,
       );
 
   /// Used for equality check, see [EquatableMixin].

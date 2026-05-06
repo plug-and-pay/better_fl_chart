@@ -53,6 +53,11 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
 
   final Map<int, List<int>> _showingTouchedIndicators = {};
 
+  /// Pointer position (in chart-local pixels) used to drive the
+  /// "glow on hover" effect. Updated on every touch event so the glow
+  /// follows the finger smoothly along the line, not just the nearest spot.
+  Offset? _glowAnchor;
+
   final _lineChartHelper = LineChartHelper();
 
   @override
@@ -86,6 +91,7 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         final index = lineChartData.lineBarsData.indexOf(barData);
         return barData.copyWith(
           showingIndicators: _showingTouchedIndicators[index] ?? [],
+          glowAnchor: _glowAnchor,
         );
       }).toList(),
     );
@@ -138,6 +144,7 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
+        _glowAnchor = null;
       });
       return;
     }
@@ -156,6 +163,10 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       _showingTouchedTooltips
         ..clear()
         ..add(ShowingTooltipIndicators(sortedLineSpots));
+
+      // Track the raw pointer position so the glow follows the finger
+      // smoothly between data points instead of snapping to spots.
+      _glowAnchor = event.localPosition ?? touchResponse.touchLocation;
     });
   }
 

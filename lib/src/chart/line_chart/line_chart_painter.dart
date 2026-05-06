@@ -1083,9 +1083,11 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
   }
 
   /// Renders the "glow on hover" effect for [barData] when
-  /// [LineGlowData.show] is true and the line has any
-  /// [LineChartBarData.showingIndicators]. Each indicated spot recolors a
-  /// circular segment of the line (radius [LineGlowData.spreadRadius]) using
+  /// [LineGlowData.show] is true. The glow centers on
+  /// [LineChartBarData.glowAnchor] when set (the live pointer position, which
+  /// makes the glow track the finger smoothly along the line); otherwise it
+  /// falls back to centering on each spot in [LineChartBarData.showingIndicators].
+  /// Within each circular region the line is recolored using
   /// [LineGlowData.color] (or the line's own color when null), with a blurred
   /// copy painted behind it for the glow.
   @visibleForTesting
@@ -1096,11 +1098,35 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     PaintHolder<LineChartData> holder,
   ) {
     final glow = barData.glowData;
-    if (!glow.show || barData.showingIndicators.isEmpty) {
+    if (!glow.show) {
       return;
     }
 
     final viewSize = canvasWrapper.size;
+    final centers = <Offset>[];
+    if (barData.glowAnchor != null) {
+      centers.add(barData.glowAnchor!);
+    } else {
+      for (final spotIndex in barData.showingIndicators) {
+        if (spotIndex < 0 || spotIndex >= barData.spots.length) {
+          continue;
+        }
+        final spot = barData.spots[spotIndex];
+        if (spot.isNull()) {
+          continue;
+        }
+        centers.add(
+          Offset(
+            getPixelX(spot.x, viewSize, holder),
+            getPixelY(spot.y, viewSize, holder),
+          ),
+        );
+      }
+    }
+    if (centers.isEmpty) {
+      return;
+    }
+
     final glowColor = glow.color ?? barData.color ?? Colors.cyan;
 
     final glowPaint = Paint()
@@ -1120,28 +1146,15 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       ..color = glowColor
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.blurSigma);
 
-    for (final spotIndex in barData.showingIndicators) {
-      if (spotIndex < 0 || spotIndex >= barData.spots.length) {
-        continue;
-      }
-      final spot = barData.spots[spotIndex];
-      if (spot.isNull()) {
-        continue;
-      }
-
-      final touchedPoint = Offset(
-        getPixelX(spot.x, viewSize, holder),
-        getPixelY(spot.y, viewSize, holder),
-      );
-
+    for (final center in centers) {
       // saveLayer bounds need to include the blur falloff to avoid clipping.
       final layerBounds = Rect.fromCircle(
-        center: touchedPoint,
+        center: center,
         radius: glow.spreadRadius + glow.blurSigma * 4,
       );
       final clipPath = Path()
         ..addOval(
-          Rect.fromCircle(center: touchedPoint, radius: glow.spreadRadius),
+          Rect.fromCircle(center: center, radius: glow.spreadRadius),
         );
 
       canvasWrapper
