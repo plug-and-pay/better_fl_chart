@@ -406,17 +406,19 @@ class LineChartBarData with EquatableMixin {
   /// near each spot in [showingIndicators]. See [LineGlowData].
   final LineGlowData glowData;
 
-  /// Pixel-space head of the glow trail — the live pointer position. The
-  /// built-in touch handler in [LineChart] keeps this in sync with the
-  /// finger so the glow's leading edge sticks to the pointer. When null,
+  /// Data-space head of the glow snake — `dx` is the spot x-value, `dy`
+  /// is the spot y-value. The built-in [LineChart] State drives this
+  /// field, easing it quickly toward the currently-selected spot, and the
+  /// painter converts it to pixel coordinates at draw time. When null,
   /// the glow falls back to centering on each spot in [showingIndicators].
   final Offset? glowAnchor;
 
-  /// Pixel-space tail of the glow trail — an eased copy of [glowAnchor]
-  /// that lags behind by [LineGlowData.followDuration]. When both anchors
-  /// are set and separated, the painter draws a fading sequence of glow
-  /// spots from tail to head, producing a visible snake-like body along
-  /// the line. When null, only [glowAnchor] is used (single spot).
+  /// Data-space tail of the glow snake — eased toward the same target as
+  /// [glowAnchor] but with the full [LineGlowData.followDuration] as time
+  /// constant, so the body stretches between the previous selected spot
+  /// and the new one mid-animation. When both anchors are set and
+  /// separated, the painter draws a fading sequence of glow spots from
+  /// tail to head along the line. When null, only [glowAnchor] is used.
   final Offset? glowTailAnchor;
 
   /// Lerps a [LineChartBarData] based on [t] value, check [Tween.lerp].

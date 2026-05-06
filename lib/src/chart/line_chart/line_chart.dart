@@ -56,15 +56,21 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
 
   final Map<int, List<int>> _showingTouchedIndicators = {};
 
-  /// Live pointer position (in chart-local pixels) — updated on every touch
-  /// event. This is the HEAD of the glow snake; it sticks to the finger.
-  Offset? _glowTarget;
+  /// Per-bar target spot in DATA space (FlSpot.x, FlSpot.y) — the position
+  /// the glow snake should slide to. Updated whenever the selected spot
+  /// changes (touch or programmatic [LineChartBarData.showingIndicators]).
+  final Map<int, Offset> _glowDataTarget = {};
 
-  /// Eased follower of [_glowTarget] — the TAIL of the glow snake. Lags
-  /// behind by [LineGlowData.followDuration]; the painter draws a fading
-  /// trail of glow spots between [_glowTarget] (head) and this offset
-  /// (tail) so the snake's body is visible along the line.
-  Offset? _glowDisplayed;
+  /// Per-bar eased head position in DATA space — the leading edge of the
+  /// snake. Eases toward [_glowDataTarget] with a short time constant so
+  /// the head reaches the new spot quickly.
+  final Map<int, Offset> _glowDataHead = {};
+
+  /// Per-bar eased tail position in DATA space — the trailing edge of the
+  /// snake. Eases toward [_glowDataTarget] with the full
+  /// [LineGlowData.followDuration] as time constant, so the body stretches
+  /// between the old spot and the new one mid-animation.
+  final Map<int, Offset> _glowDataTail = {};
 
   /// Whether a glow trail frame callback is already queued — guards against
   /// scheduling more than one callback per frame.
@@ -79,6 +85,7 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
   @override
   Widget build(BuildContext context) {
     final showingData = _getData();
+    _syncGlowTargetsFromWidgetData(showingData);
 
     return AxisChartScaffoldWidget(
       transformationConfig: widget.transformationConfig,
@@ -96,21 +103,22 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
   }
 
   LineChartData _withTouchedIndicators(LineChartData lineChartData) {
-    if (!lineChartData.lineTouchData.enabled ||
-        !lineChartData.lineTouchData.handleBuiltInTouches) {
-      return lineChartData;
-    }
+    final touchEnabled = lineChartData.lineTouchData.enabled &&
+        lineChartData.lineTouchData.handleBuiltInTouches;
 
     return lineChartData.copyWith(
-      showingTooltipIndicators: _showingTouchedTooltips,
-      lineBarsData: lineChartData.lineBarsData.map((barData) {
-        final index = lineChartData.lineBarsData.indexOf(barData);
+      showingTooltipIndicators:
+          touchEnabled ? _showingTouchedTooltips : null,
+      lineBarsData: List.generate(lineChartData.lineBarsData.length, (i) {
+        final barData = lineChartData.lineBarsData[i];
+        final touchedIndicators =
+            touchEnabled ? (_showingTouchedIndicators[i] ?? const <int>[]) : null;
         return barData.copyWith(
-          showingIndicators: _showingTouchedIndicators[index] ?? [],
-          glowAnchor: _glowTarget,
-          glowTailAnchor: _glowDisplayed,
+          showingIndicators: touchedIndicators,
+          glowAnchor: _glowDataHead[i],
+          glowTailAnchor: _glowDataTail[i],
         );
-      }).toList(),
+      }),
     );
   }
 
@@ -155,75 +163,97 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
     }
     _providedTouchCallback?.call(event, touchResponse);
 
-    // True touch end (pan end / cancel / pointer exit) — tear everything
-    // down, including the glow.
+    // Touch end: clear the tooltip/indicator state. Glow head/tail intentionally
+    // persist so the next selection can animate from where the snake came to
+    // rest, instead of snapping to the new spot from nothing.
     if (!event.isInterestedForInteractions) {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
       });
-      _setGlowTarget(null);
       return;
     }
 
-    final pointer = event.localPosition ?? touchResponse?.touchLocation;
-
-    // Touch is still active but no spot is within touchSpotThreshold.
-    // Clear tooltip/indicator state, but keep the glow tracking the pointer
-    // — otherwise the trail resets every time the finger crosses between
-    // spots and the user just sees the glow snap to the finger.
-    if (touchResponse?.lineBarSpots == null ||
-        touchResponse!.lineBarSpots!.isEmpty) {
+    final spots = touchResponse?.lineBarSpots;
+    if (spots == null || spots.isEmpty) {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
       });
-      _setGlowTarget(pointer);
       return;
     }
 
     setState(() {
-      final sortedLineSpots = List.of(touchResponse.lineBarSpots!)
+      final sortedLineSpots = List.of(spots)
         ..sort((spot1, spot2) => spot2.y.compareTo(spot1.y));
 
       _showingTouchedIndicators.clear();
-      for (var i = 0; i < touchResponse.lineBarSpots!.length; i++) {
-        final touchedBarSpot = touchResponse.lineBarSpots![i];
-        final barPos = touchedBarSpot.barIndex;
-        _showingTouchedIndicators[barPos] = [touchedBarSpot.spotIndex];
+      for (final touched in spots) {
+        _showingTouchedIndicators[touched.barIndex] = [touched.spotIndex];
+        _setGlowTargetForBar(touched.barIndex, Offset(touched.x, touched.y));
       }
 
       _showingTouchedTooltips
         ..clear()
         ..add(ShowingTooltipIndicators(sortedLineSpots));
     });
-    _setGlowTarget(pointer);
   }
 
-  /// Updates the live pointer target for the glow trail and ensures a frame
-  /// callback is queued while [_glowDisplayed] still trails [_glowTarget].
-  void _setGlowTarget(Offset? target) {
-    _glowTarget = target;
-    if (target == null) {
-      // Touch ended: snap glow off so it doesn't drift toward (0,0).
-      if (_glowDisplayed != null) {
-        setState(() => _glowDisplayed = null);
+  /// Reads programmatic [LineChartBarData.showingIndicators] and updates
+  /// [_glowDataTarget] for any bar whose selected spot changed since the
+  /// last build. Lets the snake animation also fire when callers drive
+  /// the selection through widget data instead of touch events.
+  void _syncGlowTargetsFromWidgetData(LineChartData data) {
+    final touchEnabled = data.lineTouchData.enabled &&
+        data.lineTouchData.handleBuiltInTouches;
+    for (var i = 0; i < data.lineBarsData.length; i++) {
+      // Skip bars that are currently being driven by touch — those targets
+      // are already maintained in [_handleBuiltInTouch], and overriding
+      // them here would fight live drags.
+      if (touchEnabled && _showingTouchedIndicators.containsKey(i)) {
+        continue;
       }
-      _glowLastFrameTime = null;
-      return;
+      final bar = data.lineBarsData[i];
+      if (bar.showingIndicators.isEmpty) {
+        // Selection cleared — let head/tail decay to nothing on the next
+        // frame by removing the bar from the active maps.
+        _glowDataTarget.remove(i);
+        continue;
+      }
+      final spotIndex = bar.showingIndicators.first;
+      if (spotIndex < 0 || spotIndex >= bar.spots.length) {
+        continue;
+      }
+      final spot = bar.spots[spotIndex];
+      if (spot.isNull()) {
+        continue;
+      }
+      _setGlowTargetForBar(i, Offset(spot.x, spot.y));
     }
-    if (_glowDisplayed == null) {
-      // First appearance: place the glow under the finger immediately.
-      setState(() => _glowDisplayed = target);
-      return;
-    }
-    _scheduleGlowFrame();
   }
 
-  /// Queues a single frame callback to advance the trail. Self-reschedules
-  /// from inside [_onGlowFrame] until the displayed position converges.
+  /// Updates the data-space target for [barIndex]'s glow snake. If the bar
+  /// has no displayed head/tail yet (first selection), snaps both to the
+  /// target so the glow appears at that spot. Otherwise schedules a frame
+  /// to ease head and tail toward the new target.
+  void _setGlowTargetForBar(int barIndex, Offset target) {
+    _glowDataTarget[barIndex] = target;
+    if (!_glowDataHead.containsKey(barIndex)) {
+      _glowDataHead[barIndex] = target;
+      _glowDataTail[barIndex] = target;
+      return;
+    }
+    if (_glowDataHead[barIndex] != target ||
+        _glowDataTail[barIndex] != target) {
+      _scheduleGlowFrame();
+    }
+  }
+
   void _scheduleGlowFrame() {
     if (_glowFrameScheduled || !mounted) {
+      return;
+    }
+    if (_glowDataTarget.isEmpty) {
       return;
     }
     _glowFrameScheduled = true;
@@ -238,11 +268,12 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       ..scheduleFrame();
   }
 
-  /// Eases [_glowDisplayed] toward [_glowTarget] using exponential decay
-  /// with the per-bar [LineGlowData.followDuration] as time constant. Keeps
-  /// rescheduling itself until the gap closes.
+  /// Eases each bar's head (fast) and tail (slow) toward its data-space
+  /// target. The differential rates are what make it look like a snake:
+  /// the head darts to the new spot while the tail is still near the old
+  /// one, so the body stretches across the line in between.
   void _onGlowFrame(Duration timestamp) {
-    if (_glowDisplayed == null || _glowTarget == null) {
+    if (_glowDataTarget.isEmpty) {
       _glowLastFrameTime = null;
       return;
     }
@@ -251,23 +282,61 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         : (timestamp - _glowLastFrameTime!).inMicroseconds / 1e6;
     _glowLastFrameTime = timestamp;
 
-    final tau = _glowFollowDurationSeconds();
-    if (tau <= 0) {
-      setState(() => _glowDisplayed = _glowTarget);
+    final tauTotal = _glowFollowDurationSeconds();
+    if (tauTotal <= 0) {
+      setState(() {
+        for (final i in _glowDataTarget.keys.toList()) {
+          _glowDataHead[i] = _glowDataTarget[i]!;
+          _glowDataTail[i] = _glowDataTarget[i]!;
+        }
+      });
       _glowLastFrameTime = null;
       return;
     }
-    final blend = (1 - math.exp(-dt / tau)).clamp(0.0, 1.0);
-    final next = Offset.lerp(_glowDisplayed, _glowTarget, blend)!;
 
-    final delta = (next - _glowTarget!).distance;
-    if (delta < 0.5) {
-      setState(() => _glowDisplayed = _glowTarget);
-      _glowLastFrameTime = null;
-    } else {
-      setState(() => _glowDisplayed = next);
+    // Head moves ~5x faster than tail — that gap is the snake's body.
+    final tauHead = tauTotal * 0.2;
+    final tauTail = tauTotal;
+    final blendHead = (1 - math.exp(-dt / tauHead)).clamp(0.0, 1.0);
+    final blendTail = (1 - math.exp(-dt / tauTail)).clamp(0.0, 1.0);
+
+    var anyMoving = false;
+    setState(() {
+      for (final i in _glowDataTarget.keys.toList()) {
+        final target = _glowDataTarget[i]!;
+        final head = _glowDataHead[i] ?? target;
+        final tail = _glowDataTail[i] ?? target;
+        final newHead = Offset.lerp(head, target, blendHead)!;
+        final newTail = Offset.lerp(tail, target, blendTail)!;
+        _glowDataHead[i] = newHead;
+        _glowDataTail[i] = newTail;
+        // Threshold relative to chart range so this works for both
+        // 0–1 and 0–10000 data scales.
+        final range = _dataRange();
+        final epsilon = range * 1e-4;
+        if ((newHead - target).distanceSquared > epsilon * epsilon ||
+            (newTail - target).distanceSquared > epsilon * epsilon) {
+          anyMoving = true;
+        }
+      }
+    });
+
+    if (anyMoving) {
       _scheduleGlowFrame();
+    } else {
+      _glowLastFrameTime = null;
     }
+  }
+
+  /// A characteristic length of the chart's data range, used to scale the
+  /// "are we close enough to the target" threshold so it works for any
+  /// data magnitude.
+  double _dataRange() {
+    final data = widget.data;
+    final dx = (data.maxX - data.minX).abs();
+    final dy = (data.maxY - data.minY).abs();
+    final r = math.sqrt(dx * dx + dy * dy);
+    return r.isFinite && r > 0 ? r : 1.0;
   }
 
   /// Reads the trail time constant from the first bar with a visible glow,

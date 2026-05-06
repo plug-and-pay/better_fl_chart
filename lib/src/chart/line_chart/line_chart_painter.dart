@@ -1085,13 +1085,18 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
   /// Renders the "glow on hover" effect for [barData] when
   /// [LineGlowData.show] is true.
   ///
-  /// When both [LineChartBarData.glowAnchor] (live pointer / head) and
-  /// [LineChartBarData.glowTailAnchor] (eased tail) are set, draws a
-  /// sequence of mask spots interpolated from tail to head with the spot
-  /// alpha ramping up along the trail — producing a visible snake-like
-  /// body along the line instead of a single lagging blob. When only the
-  /// head is set, draws a single full-strength spot. Otherwise falls back
-  /// to centering on each spot in [LineChartBarData.showingIndicators].
+  /// [LineChartBarData.glowAnchor] (head) and [LineChartBarData.glowTailAnchor]
+  /// (tail) are in DATA space — `dx` is the spot x-value, `dy` is the
+  /// spot y-value — so the easing in the widget's State is independent of
+  /// pixel size and re-layouts. They're converted to pixel coordinates
+  /// here via [getPixelX]/[getPixelY] before drawing.
+  ///
+  /// When the head and tail are separated, draws a sequence of mask
+  /// spots interpolated between them with the alpha ramping up toward
+  /// the head — that gap is what produces the visible snake body sliding
+  /// from the previous selected spot to the new one. When only the head
+  /// is set, draws a single spot. Otherwise falls back to centering on
+  /// each spot in [LineChartBarData.showingIndicators].
   ///
   /// Each mask draws a recolored copy of the line (in [LineGlowData.color],
   /// or the line's own color when null) plus a blurred halo, masked with a
@@ -1111,8 +1116,16 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
 
     final viewSize = canvasWrapper.size;
     final spots = <({Offset center, double alpha})>[];
-    final head = barData.glowAnchor;
-    final tail = barData.glowTailAnchor;
+
+    Offset? toPixel(Offset? dataPoint) => dataPoint == null
+        ? null
+        : Offset(
+            getPixelX(dataPoint.dx, viewSize, holder),
+            getPixelY(dataPoint.dy, viewSize, holder),
+          );
+
+    final head = toPixel(barData.glowAnchor);
+    final tail = toPixel(barData.glowTailAnchor);
 
     if (head != null && tail != null && (head - tail).distance > 0.5) {
       // Sample densely so adjacent spots overlap even on curved sections —
