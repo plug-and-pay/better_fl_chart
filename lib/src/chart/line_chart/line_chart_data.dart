@@ -549,6 +549,12 @@ class LineChartBarData with EquatableMixin {
         isStepLineChart,
         lineChartStepData,
         glowData,
+        // Anchors must be in props so the renderer's data/targetData
+        // setters detect per-frame trail updates and repaint. Excluding
+        // them silently freezes the glow at whatever positions were live
+        // on the first paint.
+        glowAnchor,
+        glowTailAnchor,
       ];
 }
 
