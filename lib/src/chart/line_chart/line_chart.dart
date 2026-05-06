@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:better_fl_chart/src/chart/base/axis_chart/axis_chart_scaffold_widget.dart';
@@ -63,21 +62,18 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
   Offset? _glowTarget;
 
   /// Displayed glow position — what the painter actually renders. Eased
-  /// toward [_glowTarget] each frame by [_glowTicker].
+  /// toward [_glowTarget] each frame.
   Offset? _glowDisplayed;
 
-  /// Ticker that drives the trailing animation while [_glowTarget] differs
-  /// from [_glowDisplayed]. Stops itself once they converge.
-  Ticker? _glowTicker;
-  Duration _glowLastElapsed = Duration.zero;
+  /// Whether a glow trail frame callback is already queued — guards against
+  /// scheduling more than one callback per frame.
+  bool _glowFrameScheduled = false;
+
+  /// Timestamp of the previous trail frame; used to compute the per-frame
+  /// blend factor from real elapsed time.
+  Duration? _glowLastFrameTime;
 
   final _lineChartHelper = LineChartHelper();
-
-  @override
-  void dispose() {
-    _glowTicker?.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,8 +198,8 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
     _setGlowTarget(pointer);
   }
 
-  /// Updates the live pointer target for the glow trail and ensures the
-  /// ticker is running while [_glowDisplayed] hasn't converged on it yet.
+  /// Updates the live pointer target for the glow trail and ensures a frame
+  /// callback is queued while [_glowDisplayed] still trails [_glowTarget].
   void _setGlowTarget(Offset? target) {
     _glowTarget = target;
     if (target == null) {
@@ -211,8 +207,7 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       if (_glowDisplayed != null) {
         setState(() => _glowDisplayed = null);
       }
-      _glowTicker?.stop();
-      _glowLastElapsed = Duration.zero;
+      _glowLastFrameTime = null;
       return;
     }
     if (_glowDisplayed == null) {
@@ -220,30 +215,44 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       setState(() => _glowDisplayed = target);
       return;
     }
-    _glowTicker ??= Ticker(_onGlowTick);
-    if (!_glowTicker!.isActive) {
-      _glowLastElapsed = Duration.zero;
-      unawaited(_glowTicker!.start());
+    _scheduleGlowFrame();
+  }
+
+  /// Queues a single frame callback to advance the trail. Self-reschedules
+  /// from inside [_onGlowFrame] until the displayed position converges.
+  void _scheduleGlowFrame() {
+    if (_glowFrameScheduled || !mounted) {
+      return;
     }
+    _glowFrameScheduled = true;
+    SchedulerBinding.instance
+      ..scheduleFrameCallback((timestamp) {
+        _glowFrameScheduled = false;
+        if (!mounted) {
+          return;
+        }
+        _onGlowFrame(timestamp);
+      })
+      ..scheduleFrame();
   }
 
   /// Eases [_glowDisplayed] toward [_glowTarget] using exponential decay
-  /// with the per-bar [LineGlowData.followDuration] as time constant.
-  /// Stops the ticker once the displayed position is close enough.
-  void _onGlowTick(Duration elapsed) {
+  /// with the per-bar [LineGlowData.followDuration] as time constant. Keeps
+  /// rescheduling itself until the gap closes.
+  void _onGlowFrame(Duration timestamp) {
     if (_glowDisplayed == null || _glowTarget == null) {
-      _glowTicker?.stop();
+      _glowLastFrameTime = null;
       return;
     }
-    final dt = _glowLastElapsed == Duration.zero
+    final dt = _glowLastFrameTime == null
         ? 1 / 60
-        : (elapsed - _glowLastElapsed).inMicroseconds / 1e6;
-    _glowLastElapsed = elapsed;
+        : (timestamp - _glowLastFrameTime!).inMicroseconds / 1e6;
+    _glowLastFrameTime = timestamp;
 
     final tau = _glowFollowDurationSeconds();
     if (tau <= 0) {
       setState(() => _glowDisplayed = _glowTarget);
-      _glowTicker?.stop();
+      _glowLastFrameTime = null;
       return;
     }
     final blend = (1 - math.exp(-dt / tau)).clamp(0.0, 1.0);
@@ -252,21 +261,22 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
     final delta = (next - _glowTarget!).distance;
     if (delta < 0.5) {
       setState(() => _glowDisplayed = _glowTarget);
-      _glowTicker?.stop();
+      _glowLastFrameTime = null;
     } else {
       setState(() => _glowDisplayed = next);
+      _scheduleGlowFrame();
     }
   }
 
   /// Reads the trail time constant from the first bar with a visible glow,
-  /// in seconds. Falls back to 220ms when nothing is configured.
+  /// in seconds. Falls back to the default when nothing is configured.
   double _glowFollowDurationSeconds() {
     for (final bar in widget.data.lineBarsData) {
       if (bar.glowData.show) {
         return bar.glowData.followDuration.inMicroseconds / 1e6;
       }
     }
-    return 0.22;
+    return 0.4;
   }
 
   @override

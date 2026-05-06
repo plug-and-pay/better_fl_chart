@@ -590,7 +590,7 @@ class LineGlowData with EquatableMixin {
     this.color,
     this.spreadRadius = 30,
     this.blurSigma = 12,
-    this.followDuration = const Duration(milliseconds: 220),
+    this.followDuration = const Duration(milliseconds: 400),
   });
 
   /// Whether to render the glow effect. Defaults to false.
