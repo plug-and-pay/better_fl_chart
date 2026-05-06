@@ -1085,20 +1085,17 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
   /// Renders the "glow on hover" effect for [barData] when
   /// [LineGlowData.show] is true.
   ///
-  /// [LineChartBarData.glowAnchor] (head) and [LineChartBarData.glowTailAnchor]
-  /// (tail) are in DATA space — `dx` is the spot x-value, `dy` is the
-  /// spot y-value — so the easing in the widget's State is independent of
-  /// pixel size and re-layouts. They're converted to pixel coordinates
-  /// here via [getPixelX]/[getPixelY] before drawing.
+  /// [LineChartBarData.glowAnchor] is in DATA space — `dx` is the spot
+  /// x-value, `dy` is the spot y-value — so the easing in the widget's
+  /// State is independent of pixel size and re-layouts. It's converted
+  /// to pixel coordinates here via [getPixelX]/[getPixelY] before drawing.
   ///
-  /// When the head and tail are separated, draws a sequence of mask
-  /// spots interpolated between them with the alpha ramping up toward
-  /// the head — that gap is what produces the visible snake body sliding
-  /// from the previous selected spot to the new one. When only the head
-  /// is set, draws a single spot. Otherwise falls back to centering on
-  /// each spot in [LineChartBarData.showingIndicators].
+  /// Draws a single fixed-size masked spot at the eased anchor (so as
+  /// the selection moves between spots, the glow translates without
+  /// stretching). Falls back to centering on each spot in
+  /// [LineChartBarData.showingIndicators] when no anchor is set.
   ///
-  /// Each mask draws a recolored copy of the line (in [LineGlowData.color],
+  /// The mask draws a recolored copy of the line (in [LineGlowData.color],
   /// or the line's own color when null) plus a blurred halo, masked with a
   /// radial gradient (`BlendMode.dstIn`) so the highlight follows the
   /// line's shape and fades to transparent at the spot's edge.
@@ -1115,38 +1112,16 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     }
 
     final viewSize = canvasWrapper.size;
-    final spots = <({Offset center, double alpha})>[];
+    final centers = <Offset>[];
 
-    Offset? toPixel(Offset? dataPoint) => dataPoint == null
-        ? null
-        : Offset(
-            getPixelX(dataPoint.dx, viewSize, holder),
-            getPixelY(dataPoint.dy, viewSize, holder),
-          );
-
-    final head = toPixel(barData.glowAnchor);
-    final tail = toPixel(barData.glowTailAnchor);
-
-    if (head != null && tail != null && (head - tail).distance > 0.5) {
-      // Sample densely so adjacent spots overlap even on curved sections —
-      // step ~= spreadRadius/3 keeps the mask circles ~3x oversampled
-      // along the chord between tail and head.
-      final trailLength = (head - tail).distance;
-      final step = max<double>(glow.spreadRadius / 3, 3);
-      final sampleCount = max(4, (trailLength / step).ceil());
-      for (var i = 0; i <= sampleCount; i++) {
-        final t = i / sampleCount;
-        final center = Offset.lerp(tail, head, t)!;
-        // Linear ramp with a 0.45 floor — the body of the snake stays
-        // clearly visible all the way to the tail, with the head still
-        // brightest. A pure 0→1 ramp made the back half nearly invisible
-        // and the user only saw the bright tip at the finger, which read
-        // as "the glow snaps with my finger."
-        final alpha = (0.45 + 0.55 * t).clamp(0.0, 1.0);
-        spots.add((center: center, alpha: alpha));
-      }
-    } else if (head != null) {
-      spots.add((center: head, alpha: 1.0));
+    final anchor = barData.glowAnchor;
+    if (anchor != null) {
+      centers.add(
+        Offset(
+          getPixelX(anchor.dx, viewSize, holder),
+          getPixelY(anchor.dy, viewSize, holder),
+        ),
+      );
     } else {
       for (final spotIndex in barData.showingIndicators) {
         if (spotIndex < 0 || spotIndex >= barData.spots.length) {
@@ -1156,18 +1131,15 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
         if (spot.isNull()) {
           continue;
         }
-        spots.add(
-          (
-            center: Offset(
-              getPixelX(spot.x, viewSize, holder),
-              getPixelY(spot.y, viewSize, holder),
-            ),
-            alpha: 1.0,
+        centers.add(
+          Offset(
+            getPixelX(spot.x, viewSize, holder),
+            getPixelY(spot.y, viewSize, holder),
           ),
         );
       }
     }
-    if (spots.isEmpty) {
+    if (centers.isEmpty) {
       return;
     }
 
@@ -1190,8 +1162,7 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       ..color = glowColor
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.blurSigma);
 
-    for (final spot in spots) {
-      final center = spot.center;
+    for (final center in centers) {
       // The mask radius extends past spreadRadius so the soft halo from the
       // blurred line isn't truncated; the gradient still fully fades to
       // transparent before the layer bounds.
@@ -1202,14 +1173,10 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       );
       final maskRect = Rect.fromCircle(center: center, radius: maskRadius);
 
-      final innerAlpha = (spot.alpha * 255).round().clamp(0, 255);
       final maskPaint = Paint()
         ..blendMode = BlendMode.dstIn
         ..shader = RadialGradient(
-          colors: [
-            Color.fromARGB(innerAlpha, 255, 255, 255),
-            const Color(0x00FFFFFF),
-          ],
+          colors: const [Colors.white, Color(0x00FFFFFF)],
           stops: [
             (glow.spreadRadius / maskRadius).clamp(0.0, 1.0),
             1.0,
