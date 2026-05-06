@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:better_fl_chart/src/chart/base/axis_chart/axis_chart_scaffold_widget.dart';
 import 'package:better_fl_chart/src/chart/base/axis_chart/scale_axis.dart';
 import 'package:better_fl_chart/src/chart/base/axis_chart/transformation_config.dart';
@@ -8,6 +11,7 @@ import 'package:better_fl_chart/src/chart/line_chart/line_chart_helper.dart';
 import 'package:better_fl_chart/src/chart/line_chart/line_chart_renderer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// Renders a line chart as a widget, using provided [LineChartData].
 class LineChart extends ImplicitlyAnimatedWidget {
@@ -53,12 +57,27 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
 
   final Map<int, List<int>> _showingTouchedIndicators = {};
 
-  /// Pointer position (in chart-local pixels) used to drive the
-  /// "glow on hover" effect. Updated on every touch event so the glow
-  /// follows the finger smoothly along the line, not just the nearest spot.
-  Offset? _glowAnchor;
+  /// Live pointer position (in chart-local pixels) — updated on every touch
+  /// event. The glow does not render at this position directly; instead
+  /// [_glowDisplayed] eases toward it, producing the trailing "snake" effect.
+  Offset? _glowTarget;
+
+  /// Displayed glow position — what the painter actually renders. Eased
+  /// toward [_glowTarget] each frame by [_glowTicker].
+  Offset? _glowDisplayed;
+
+  /// Ticker that drives the trailing animation while [_glowTarget] differs
+  /// from [_glowDisplayed]. Stops itself once they converge.
+  Ticker? _glowTicker;
+  Duration _glowLastElapsed = Duration.zero;
 
   final _lineChartHelper = LineChartHelper();
+
+  @override
+  void dispose() {
+    _glowTicker?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +110,7 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         final index = lineChartData.lineBarsData.indexOf(barData);
         return barData.copyWith(
           showingIndicators: _showingTouchedIndicators[index] ?? [],
-          glowAnchor: _glowAnchor,
+          glowAnchor: _glowDisplayed,
         );
       }).toList(),
     );
@@ -144,8 +163,8 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
-        _glowAnchor = null;
       });
+      _setGlowTarget(null);
       return;
     }
 
@@ -163,11 +182,75 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       _showingTouchedTooltips
         ..clear()
         ..add(ShowingTooltipIndicators(sortedLineSpots));
-
-      // Track the raw pointer position so the glow follows the finger
-      // smoothly between data points instead of snapping to spots.
-      _glowAnchor = event.localPosition ?? touchResponse.touchLocation;
     });
+    _setGlowTarget(event.localPosition ?? touchResponse.touchLocation);
+  }
+
+  /// Updates the live pointer target for the glow trail and ensures the
+  /// ticker is running while [_glowDisplayed] hasn't converged on it yet.
+  void _setGlowTarget(Offset? target) {
+    _glowTarget = target;
+    if (target == null) {
+      // Touch ended: snap glow off so it doesn't drift toward (0,0).
+      if (_glowDisplayed != null) {
+        setState(() => _glowDisplayed = null);
+      }
+      _glowTicker?.stop();
+      _glowLastElapsed = Duration.zero;
+      return;
+    }
+    if (_glowDisplayed == null) {
+      // First appearance: place the glow under the finger immediately.
+      setState(() => _glowDisplayed = target);
+      return;
+    }
+    _glowTicker ??= Ticker(_onGlowTick);
+    if (!_glowTicker!.isActive) {
+      _glowLastElapsed = Duration.zero;
+      unawaited(_glowTicker!.start());
+    }
+  }
+
+  /// Eases [_glowDisplayed] toward [_glowTarget] using exponential decay
+  /// with the per-bar [LineGlowData.followDuration] as time constant.
+  /// Stops the ticker once the displayed position is close enough.
+  void _onGlowTick(Duration elapsed) {
+    if (_glowDisplayed == null || _glowTarget == null) {
+      _glowTicker?.stop();
+      return;
+    }
+    final dt = _glowLastElapsed == Duration.zero
+        ? 1 / 60
+        : (elapsed - _glowLastElapsed).inMicroseconds / 1e6;
+    _glowLastElapsed = elapsed;
+
+    final tau = _glowFollowDurationSeconds();
+    if (tau <= 0) {
+      setState(() => _glowDisplayed = _glowTarget);
+      _glowTicker?.stop();
+      return;
+    }
+    final blend = (1 - math.exp(-dt / tau)).clamp(0.0, 1.0);
+    final next = Offset.lerp(_glowDisplayed, _glowTarget, blend)!;
+
+    final delta = (next - _glowTarget!).distance;
+    if (delta < 0.5) {
+      setState(() => _glowDisplayed = _glowTarget);
+      _glowTicker?.stop();
+    } else {
+      setState(() => _glowDisplayed = next);
+    }
+  }
+
+  /// Reads the trail time constant from the first bar with a visible glow,
+  /// in seconds. Falls back to 220ms when nothing is configured.
+  double _glowFollowDurationSeconds() {
+    for (final bar in widget.data.lineBarsData) {
+      if (bar.glowData.show) {
+        return bar.glowData.followDuration.inMicroseconds / 1e6;
+      }
+    }
+    return 0.22;
   }
 
   @override

@@ -590,6 +590,7 @@ class LineGlowData with EquatableMixin {
     this.color,
     this.spreadRadius = 30,
     this.blurSigma = 12,
+    this.followDuration = const Duration(milliseconds: 220),
   });
 
   /// Whether to render the glow effect. Defaults to false.
@@ -606,12 +607,20 @@ class LineGlowData with EquatableMixin {
   /// Blur sigma applied to the glow painted behind the recolored segment.
   final double blurSigma;
 
+  /// Time constant for the trailing glow animation. The displayed glow
+  /// position eases toward the live pointer position with this duration as
+  /// its exponential time constant — larger values produce a more
+  /// pronounced "snake" trail behind the finger; [Duration.zero] disables
+  /// the trail (the glow snaps to the pointer).
+  final Duration followDuration;
+
   static LineGlowData lerp(LineGlowData a, LineGlowData b, double t) =>
       LineGlowData(
         show: b.show,
         color: Color.lerp(a.color, b.color, t),
         spreadRadius: lerpDouble(a.spreadRadius, b.spreadRadius, t)!,
         blurSigma: lerpDouble(a.blurSigma, b.blurSigma, t)!,
+        followDuration: b.followDuration,
       );
 
   LineGlowData copyWith({
@@ -619,16 +628,19 @@ class LineGlowData with EquatableMixin {
     Color? color,
     double? spreadRadius,
     double? blurSigma,
+    Duration? followDuration,
   }) =>
       LineGlowData(
         show: show ?? this.show,
         color: color ?? this.color,
         spreadRadius: spreadRadius ?? this.spreadRadius,
         blurSigma: blurSigma ?? this.blurSigma,
+        followDuration: followDuration ?? this.followDuration,
       );
 
   @override
-  List<Object?> get props => [show, color, spreadRadius, blurSigma];
+  List<Object?> get props =>
+      [show, color, spreadRadius, blurSigma, followDuration];
 }
 
 /// Holds data for filling an area (above or below) of the line with a color or gradient.
