@@ -1087,9 +1087,12 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
   /// [LineChartBarData.glowAnchor] when set (the live pointer position, which
   /// makes the glow track the finger smoothly along the line); otherwise it
   /// falls back to centering on each spot in [LineChartBarData.showingIndicators].
-  /// Within each circular region the line is recolored using
-  /// [LineGlowData.color] (or the line's own color when null), with a blurred
-  /// copy painted behind it for the glow.
+  ///
+  /// Renders a recolored copy of the line (in [LineGlowData.color], or the
+  /// line's own color when null) plus a blurred halo around it, then masks
+  /// the result with a radial gradient (`BlendMode.dstIn`) so the highlight
+  /// fades smoothly along the line — the visible glow follows the line's
+  /// shape instead of being clipped to a hard circle.
   @visibleForTesting
   void drawBarGlow(
     CanvasWrapper canvasWrapper,
@@ -1147,21 +1150,31 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.blurSigma);
 
     for (final center in centers) {
-      // saveLayer bounds need to include the blur falloff to avoid clipping.
+      // The mask radius extends past spreadRadius so the soft halo from the
+      // blurred line isn't truncated; the gradient still fully fades to
+      // transparent before the layer bounds.
+      final maskRadius = glow.spreadRadius + glow.blurSigma * 2;
       final layerBounds = Rect.fromCircle(
         center: center,
-        radius: glow.spreadRadius + glow.blurSigma * 4,
+        radius: maskRadius + glow.blurSigma * 2,
       );
-      final clipPath = Path()
-        ..addOval(
-          Rect.fromCircle(center: center, radius: glow.spreadRadius),
-        );
+      final maskRect = Rect.fromCircle(center: center, radius: maskRadius);
+
+      final maskPaint = Paint()
+        ..blendMode = BlendMode.dstIn
+        ..shader = RadialGradient(
+          colors: const [Colors.white, Color(0x00FFFFFF)],
+          stops: [
+            (glow.spreadRadius / maskRadius).clamp(0.0, 1.0),
+            1.0,
+          ],
+        ).createShader(maskRect);
 
       canvasWrapper
         ..saveLayer(layerBounds, Paint())
-        ..clipPath(clipPath)
         ..drawPath(barPath, blurPaint)
         ..drawPath(barPath, glowPaint)
+        ..drawRect(layerBounds, maskPaint)
         ..restore();
     }
   }
