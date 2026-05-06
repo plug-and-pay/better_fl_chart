@@ -1083,16 +1083,20 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
   }
 
   /// Renders the "glow on hover" effect for [barData] when
-  /// [LineGlowData.show] is true. The glow centers on
-  /// [LineChartBarData.glowAnchor] when set (the live pointer position, which
-  /// makes the glow track the finger smoothly along the line); otherwise it
-  /// falls back to centering on each spot in [LineChartBarData.showingIndicators].
+  /// [LineGlowData.show] is true.
   ///
-  /// Renders a recolored copy of the line (in [LineGlowData.color], or the
-  /// line's own color when null) plus a blurred halo around it, then masks
-  /// the result with a radial gradient (`BlendMode.dstIn`) so the highlight
-  /// fades smoothly along the line — the visible glow follows the line's
-  /// shape instead of being clipped to a hard circle.
+  /// When both [LineChartBarData.glowAnchor] (live pointer / head) and
+  /// [LineChartBarData.glowTailAnchor] (eased tail) are set, draws a
+  /// sequence of mask spots interpolated from tail to head with the spot
+  /// alpha ramping up along the trail — producing a visible snake-like
+  /// body along the line instead of a single lagging blob. When only the
+  /// head is set, draws a single full-strength spot. Otherwise falls back
+  /// to centering on each spot in [LineChartBarData.showingIndicators].
+  ///
+  /// Each mask draws a recolored copy of the line (in [LineGlowData.color],
+  /// or the line's own color when null) plus a blurred halo, masked with a
+  /// radial gradient (`BlendMode.dstIn`) so the highlight follows the
+  /// line's shape and fades to transparent at the spot's edge.
   @visibleForTesting
   void drawBarGlow(
     CanvasWrapper canvasWrapper,
@@ -1106,9 +1110,27 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     }
 
     final viewSize = canvasWrapper.size;
-    final centers = <Offset>[];
-    if (barData.glowAnchor != null) {
-      centers.add(barData.glowAnchor!);
+    final spots = <({Offset center, double alpha})>[];
+    final head = barData.glowAnchor;
+    final tail = barData.glowTailAnchor;
+
+    if (head != null && tail != null && (head - tail).distance > 0.5) {
+      // Sample densely enough that adjacent spots overlap along the line.
+      // With spreadRadius typically >= barWidth, a step of spreadRadius/2
+      // keeps the mask circles overlapping even on curved sections.
+      final trailLength = (head - tail).distance;
+      final step = max<double>(glow.spreadRadius / 2, 4);
+      final sampleCount = max(2, (trailLength / step).ceil());
+      for (var i = 0; i <= sampleCount; i++) {
+        final t = i / sampleCount;
+        final center = Offset.lerp(tail, head, t)!;
+        // Quadratic ramp gives the head a brighter tip and the tail a
+        // softer fade — closer to a real snake body than linear.
+        final alpha = (t * t).clamp(0.0, 1.0);
+        spots.add((center: center, alpha: alpha));
+      }
+    } else if (head != null) {
+      spots.add((center: head, alpha: 1.0));
     } else {
       for (final spotIndex in barData.showingIndicators) {
         if (spotIndex < 0 || spotIndex >= barData.spots.length) {
@@ -1118,15 +1140,18 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
         if (spot.isNull()) {
           continue;
         }
-        centers.add(
-          Offset(
-            getPixelX(spot.x, viewSize, holder),
-            getPixelY(spot.y, viewSize, holder),
+        spots.add(
+          (
+            center: Offset(
+              getPixelX(spot.x, viewSize, holder),
+              getPixelY(spot.y, viewSize, holder),
+            ),
+            alpha: 1.0,
           ),
         );
       }
     }
-    if (centers.isEmpty) {
+    if (spots.isEmpty) {
       return;
     }
 
@@ -1149,7 +1174,8 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       ..color = glowColor
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.blurSigma);
 
-    for (final center in centers) {
+    for (final spot in spots) {
+      final center = spot.center;
       // The mask radius extends past spreadRadius so the soft halo from the
       // blurred line isn't truncated; the gradient still fully fades to
       // transparent before the layer bounds.
@@ -1160,10 +1186,14 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       );
       final maskRect = Rect.fromCircle(center: center, radius: maskRadius);
 
+      final innerAlpha = (spot.alpha * 255).round().clamp(0, 255);
       final maskPaint = Paint()
         ..blendMode = BlendMode.dstIn
         ..shader = RadialGradient(
-          colors: const [Colors.white, Color(0x00FFFFFF)],
+          colors: [
+            Color.fromARGB(innerAlpha, 255, 255, 255),
+            const Color(0x00FFFFFF),
+          ],
           stops: [
             (glow.spreadRadius / maskRadius).clamp(0.0, 1.0),
             1.0,

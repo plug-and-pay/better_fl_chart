@@ -262,6 +262,7 @@ class LineChartBarData with EquatableMixin {
     this.lineChartStepData = const LineChartStepData(),
     this.glowData = const LineGlowData(),
     this.glowAnchor,
+    this.glowTailAnchor,
   })  : color =
             color ?? ((color == null && gradient == null) ? Colors.cyan : null),
         belowBarData = belowBarData ?? BarAreaData(),
@@ -405,14 +406,18 @@ class LineChartBarData with EquatableMixin {
   /// near each spot in [showingIndicators]. See [LineGlowData].
   final LineGlowData glowData;
 
-  /// Pixel-space center for the glow effect. The built-in touch handler in
-  /// [LineChart] keeps this in sync with the pointer position so the glow
-  /// follows the finger smoothly as the user drags. When null, the glow
-  /// falls back to centering on each spot in [showingIndicators].
-  ///
-  /// Lerped via [Offset.lerp] so the surrounding [ImplicitlyAnimatedWidget]
-  /// tween produces a trailing "snake" motion as the pointer moves.
+  /// Pixel-space head of the glow trail — the live pointer position. The
+  /// built-in touch handler in [LineChart] keeps this in sync with the
+  /// finger so the glow's leading edge sticks to the pointer. When null,
+  /// the glow falls back to centering on each spot in [showingIndicators].
   final Offset? glowAnchor;
+
+  /// Pixel-space tail of the glow trail — an eased copy of [glowAnchor]
+  /// that lags behind by [LineGlowData.followDuration]. When both anchors
+  /// are set and separated, the painter draws a fading sequence of glow
+  /// spots from tail to head, producing a visible snake-like body along
+  /// the line. When null, only [glowAnchor] is used (single spot).
+  final Offset? glowTailAnchor;
 
   /// Lerps a [LineChartBarData] based on [t] value, check [Tween.lerp].
   static LineChartBarData lerp(
@@ -454,6 +459,7 @@ class LineChartBarData with EquatableMixin {
             LineChartStepData.lerp(a.lineChartStepData, b.lineChartStepData, t),
         glowData: LineGlowData.lerp(a.glowData, b.glowData, t),
         glowAnchor: Offset.lerp(a.glowAnchor, b.glowAnchor, t),
+        glowTailAnchor: Offset.lerp(a.glowTailAnchor, b.glowTailAnchor, t),
       );
 
   /// Copies current [LineChartBarData] to a new [LineChartBarData],
@@ -484,6 +490,7 @@ class LineChartBarData with EquatableMixin {
     LineChartStepData? lineChartStepData,
     LineGlowData? glowData,
     Offset? glowAnchor,
+    Offset? glowTailAnchor,
   }) =>
       LineChartBarData(
         spots: spots ?? this.spots,
@@ -513,6 +520,7 @@ class LineChartBarData with EquatableMixin {
         lineChartStepData: lineChartStepData ?? this.lineChartStepData,
         glowData: glowData ?? this.glowData,
         glowAnchor: glowAnchor ?? this.glowAnchor,
+        glowTailAnchor: glowTailAnchor ?? this.glowTailAnchor,
       );
 
   /// Used for equality check, see [EquatableMixin].

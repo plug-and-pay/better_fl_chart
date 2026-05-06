@@ -57,12 +57,13 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
   final Map<int, List<int>> _showingTouchedIndicators = {};
 
   /// Live pointer position (in chart-local pixels) — updated on every touch
-  /// event. The glow does not render at this position directly; instead
-  /// [_glowDisplayed] eases toward it, producing the trailing "snake" effect.
+  /// event. This is the HEAD of the glow snake; it sticks to the finger.
   Offset? _glowTarget;
 
-  /// Displayed glow position — what the painter actually renders. Eased
-  /// toward [_glowTarget] each frame.
+  /// Eased follower of [_glowTarget] — the TAIL of the glow snake. Lags
+  /// behind by [LineGlowData.followDuration]; the painter draws a fading
+  /// trail of glow spots between [_glowTarget] (head) and this offset
+  /// (tail) so the snake's body is visible along the line.
   Offset? _glowDisplayed;
 
   /// Whether a glow trail frame callback is already queued — guards against
@@ -106,7 +107,8 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         final index = lineChartData.lineBarsData.indexOf(barData);
         return barData.copyWith(
           showingIndicators: _showingTouchedIndicators[index] ?? [],
-          glowAnchor: _glowDisplayed,
+          glowAnchor: _glowTarget,
+          glowTailAnchor: _glowDisplayed,
         );
       }).toList(),
     );
