@@ -157,14 +157,30 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
     }
     _providedTouchCallback?.call(event, touchResponse);
 
-    if (!event.isInterestedForInteractions ||
-        touchResponse?.lineBarSpots == null ||
-        touchResponse!.lineBarSpots!.isEmpty) {
+    // True touch end (pan end / cancel / pointer exit) — tear everything
+    // down, including the glow.
+    if (!event.isInterestedForInteractions) {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
       });
       _setGlowTarget(null);
+      return;
+    }
+
+    final pointer = event.localPosition ?? touchResponse?.touchLocation;
+
+    // Touch is still active but no spot is within touchSpotThreshold.
+    // Clear tooltip/indicator state, but keep the glow tracking the pointer
+    // — otherwise the trail resets every time the finger crosses between
+    // spots and the user just sees the glow snap to the finger.
+    if (touchResponse?.lineBarSpots == null ||
+        touchResponse!.lineBarSpots!.isEmpty) {
+      setState(() {
+        _showingTouchedTooltips.clear();
+        _showingTouchedIndicators.clear();
+      });
+      _setGlowTarget(pointer);
       return;
     }
 
@@ -183,7 +199,7 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         ..clear()
         ..add(ShowingTooltipIndicators(sortedLineSpots));
     });
-    _setGlowTarget(event.localPosition ?? touchResponse.touchLocation);
+    _setGlowTarget(pointer);
   }
 
   /// Updates the live pointer target for the glow trail and ensures the
