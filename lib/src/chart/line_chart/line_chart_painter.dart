@@ -1115,18 +1115,21 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     final tail = barData.glowTailAnchor;
 
     if (head != null && tail != null && (head - tail).distance > 0.5) {
-      // Sample densely enough that adjacent spots overlap along the line.
-      // With spreadRadius typically >= barWidth, a step of spreadRadius/2
-      // keeps the mask circles overlapping even on curved sections.
+      // Sample densely so adjacent spots overlap even on curved sections —
+      // step ~= spreadRadius/3 keeps the mask circles ~3x oversampled
+      // along the chord between tail and head.
       final trailLength = (head - tail).distance;
-      final step = max<double>(glow.spreadRadius / 2, 4);
-      final sampleCount = max(2, (trailLength / step).ceil());
+      final step = max<double>(glow.spreadRadius / 3, 3);
+      final sampleCount = max(4, (trailLength / step).ceil());
       for (var i = 0; i <= sampleCount; i++) {
         final t = i / sampleCount;
         final center = Offset.lerp(tail, head, t)!;
-        // Quadratic ramp gives the head a brighter tip and the tail a
-        // softer fade — closer to a real snake body than linear.
-        final alpha = (t * t).clamp(0.0, 1.0);
+        // Linear ramp with a 0.45 floor — the body of the snake stays
+        // clearly visible all the way to the tail, with the head still
+        // brightest. A pure 0→1 ramp made the back half nearly invisible
+        // and the user only saw the bright tip at the finger, which read
+        // as "the glow snaps with my finger."
+        final alpha = (0.45 + 0.55 * t).clamp(0.0, 1.0);
         spots.add((center: center, alpha: alpha));
       }
     } else if (head != null) {
