@@ -1078,6 +1078,79 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
 
     barPath = barPath.toDashedPath(barData.dashArray);
     canvasWrapper.drawPath(barPath, _barPaint);
+
+    drawBarGlow(canvasWrapper, barPath, barData, holder);
+  }
+
+  /// Renders the "glow on hover" effect for [barData] when
+  /// [LineGlowData.show] is true and the line has any
+  /// [LineChartBarData.showingIndicators]. Each indicated spot recolors a
+  /// circular segment of the line (radius [LineGlowData.spreadRadius]) using
+  /// [LineGlowData.color] (or the line's own color when null), with a blurred
+  /// copy painted behind it for the glow.
+  @visibleForTesting
+  void drawBarGlow(
+    CanvasWrapper canvasWrapper,
+    Path barPath,
+    LineChartBarData barData,
+    PaintHolder<LineChartData> holder,
+  ) {
+    final glow = barData.glowData;
+    if (!glow.show || barData.showingIndicators.isEmpty) {
+      return;
+    }
+
+    final viewSize = canvasWrapper.size;
+    final glowColor = glow.color ?? barData.color ?? Colors.cyan;
+
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = barData.isStrokeCapRound ? StrokeCap.round : StrokeCap.butt
+      ..strokeJoin =
+          barData.isStrokeJoinRound ? StrokeJoin.round : StrokeJoin.miter
+      ..strokeWidth = barData.barWidth
+      ..color = glowColor;
+
+    final blurPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = barData.isStrokeCapRound ? StrokeCap.round : StrokeCap.butt
+      ..strokeJoin =
+          barData.isStrokeJoinRound ? StrokeJoin.round : StrokeJoin.miter
+      ..strokeWidth = barData.barWidth
+      ..color = glowColor
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, glow.blurSigma);
+
+    for (final spotIndex in barData.showingIndicators) {
+      if (spotIndex < 0 || spotIndex >= barData.spots.length) {
+        continue;
+      }
+      final spot = barData.spots[spotIndex];
+      if (spot.isNull()) {
+        continue;
+      }
+
+      final touchedPoint = Offset(
+        getPixelX(spot.x, viewSize, holder),
+        getPixelY(spot.y, viewSize, holder),
+      );
+
+      // saveLayer bounds need to include the blur falloff to avoid clipping.
+      final layerBounds = Rect.fromCircle(
+        center: touchedPoint,
+        radius: glow.spreadRadius + glow.blurSigma * 4,
+      );
+      final clipPath = Path()
+        ..addOval(
+          Rect.fromCircle(center: touchedPoint, radius: glow.spreadRadius),
+        );
+
+      canvasWrapper
+        ..saveLayer(layerBounds, Paint())
+        ..clipPath(clipPath)
+        ..drawPath(barPath, blurPaint)
+        ..drawPath(barPath, glowPaint)
+        ..restore();
+    }
   }
 
   @visibleForTesting

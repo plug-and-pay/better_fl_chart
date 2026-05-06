@@ -260,6 +260,7 @@ class LineChartBarData with EquatableMixin {
     this.shadow = const Shadow(color: Colors.transparent),
     this.isStepLineChart = false,
     this.lineChartStepData = const LineChartStepData(),
+    this.glowData = const LineGlowData(),
   })  : color =
             color ?? ((color == null && gradient == null) ? Colors.cyan : null),
         belowBarData = belowBarData ?? BarAreaData(),
@@ -399,6 +400,10 @@ class LineChartBarData with EquatableMixin {
   /// Holds data for representing a Step Line Chart, and works only if [isStepChart] is true.
   final LineChartStepData lineChartStepData;
 
+  /// Configures the "glow on hover" effect that highlights the line section
+  /// near each spot in [showingIndicators]. See [LineGlowData].
+  final LineGlowData glowData;
+
   /// Lerps a [LineChartBarData] based on [t] value, check [Tween.lerp].
   static LineChartBarData lerp(
     LineChartBarData a,
@@ -437,6 +442,7 @@ class LineChartBarData with EquatableMixin {
         isStepLineChart: b.isStepLineChart,
         lineChartStepData:
             LineChartStepData.lerp(a.lineChartStepData, b.lineChartStepData, t),
+        glowData: LineGlowData.lerp(a.glowData, b.glowData, t),
       );
 
   /// Copies current [LineChartBarData] to a new [LineChartBarData],
@@ -465,6 +471,7 @@ class LineChartBarData with EquatableMixin {
     Shadow? shadow,
     bool? isStepLineChart,
     LineChartStepData? lineChartStepData,
+    LineGlowData? glowData,
   }) =>
       LineChartBarData(
         spots: spots ?? this.spots,
@@ -492,6 +499,7 @@ class LineChartBarData with EquatableMixin {
         shadow: shadow ?? this.shadow,
         isStepLineChart: isStepLineChart ?? this.isStepLineChart,
         lineChartStepData: lineChartStepData ?? this.lineChartStepData,
+        glowData: glowData ?? this.glowData,
       );
 
   /// Used for equality check, see [EquatableMixin].
@@ -519,6 +527,7 @@ class LineChartBarData with EquatableMixin {
         shadow,
         isStepLineChart,
         lineChartStepData,
+        glowData,
       ];
 }
 
@@ -552,6 +561,61 @@ class LineChartStepData with EquatableMixin {
   /// Used for equality check, see [EquatableMixin].
   @override
   List<Object?> get props => [stepDirection];
+}
+
+/// Configures a "glow on hover" effect that highlights the line section
+/// around each spot listed in [LineChartBarData.showingIndicators].
+///
+/// When [show] is true and there are touched (or manually shown) indicators
+/// on the line, the painter recolors the segment of the line within
+/// [spreadRadius] pixels of each indicated spot using [color], and paints a
+/// blurred copy of that segment (sigma = [blurSigma]) behind it for the
+/// glow effect. If [color] is null, the line's own color is used.
+class LineGlowData with EquatableMixin {
+  const LineGlowData({
+    this.show = false,
+    this.color,
+    this.spreadRadius = 30,
+    this.blurSigma = 12,
+  });
+
+  /// Whether to render the glow effect. Defaults to false.
+  final bool show;
+
+  /// The highlight color used for the recolored segment and its glow.
+  /// Falls back to [LineChartBarData.color] when null.
+  final Color? color;
+
+  /// Radius (in pixels) around each indicated spot inside which the line
+  /// is recolored and glowed.
+  final double spreadRadius;
+
+  /// Blur sigma applied to the glow painted behind the recolored segment.
+  final double blurSigma;
+
+  static LineGlowData lerp(LineGlowData a, LineGlowData b, double t) =>
+      LineGlowData(
+        show: b.show,
+        color: Color.lerp(a.color, b.color, t),
+        spreadRadius: lerpDouble(a.spreadRadius, b.spreadRadius, t)!,
+        blurSigma: lerpDouble(a.blurSigma, b.blurSigma, t)!,
+      );
+
+  LineGlowData copyWith({
+    bool? show,
+    Color? color,
+    double? spreadRadius,
+    double? blurSigma,
+  }) =>
+      LineGlowData(
+        show: show ?? this.show,
+        color: color ?? this.color,
+        spreadRadius: spreadRadius ?? this.spreadRadius,
+        blurSigma: blurSigma ?? this.blurSigma,
+      );
+
+  @override
+  List<Object?> get props => [show, color, spreadRadius, blurSigma];
 }
 
 /// Holds data for filling an area (above or below) of the line with a color or gradient.
