@@ -530,28 +530,40 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     }
   }
 
-  /// Draws a full plot-area-height vertical line at each touched spot's
-  /// x-position when [LineTouchData.crosshair] is configured.
+  /// Draws a full plot-area-height vertical line at the crosshair's x.
+  ///
+  /// When [LineChartData.crosshairAnchorX] is set (the [LineChart] state
+  /// writes it during touch easing), the line is drawn at that data-space
+  /// x. Otherwise it falls back to drawing one line per unique touched
+  /// spot's x.
   @visibleForTesting
   void drawTouchCrosshair(
     CanvasWrapper canvasWrapper,
     List<LineIndexDrawingInfo> lineIndexDrawingInfo,
     PaintHolder<LineChartData> holder,
   ) {
-    final crosshair = holder.data.lineTouchData.crosshair;
-    if (crosshair == null || lineIndexDrawingInfo.isEmpty) {
+    final data = holder.data;
+    final crosshair = data.lineTouchData.crosshair;
+    if (crosshair == null) {
       return;
     }
     final viewSize = canvasWrapper.size;
     final line = crosshair.line;
 
-    // De-dup: multiple bars touched at the same x should only draw one line.
-    final drawnXs = <double>{};
-    for (final info in lineIndexDrawingInfo) {
-      final pixelX = getPixelX(info.spot.x, viewSize, holder);
-      if (!drawnXs.add(pixelX)) {
-        continue;
+    final pixelXs = <double>{};
+    if (data.crosshairAnchorX != null) {
+      pixelXs.add(getPixelX(data.crosshairAnchorX!, viewSize, holder));
+    } else {
+      // Fallback: draw at each unique touched-spot x.
+      for (final info in lineIndexDrawingInfo) {
+        pixelXs.add(getPixelX(info.spot.x, viewSize, holder));
       }
+    }
+    if (pixelXs.isEmpty) {
+      return;
+    }
+
+    for (final pixelX in pixelXs) {
       final from = Offset(pixelX, 0);
       final to = Offset(pixelX, viewSize.height);
 

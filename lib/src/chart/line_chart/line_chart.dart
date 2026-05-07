@@ -74,6 +74,21 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
   /// blend factor from real elapsed time.
   Duration? _glowLastFrameTime;
 
+  /// Target data-space x for the touch crosshair. Set on every touch
+  /// event; null when no touch is active.
+  double? _crosshairTargetX;
+
+  /// Eased data-space x for the touch crosshair. Translates toward
+  /// [_crosshairTargetX] over [TouchCrosshair.followDuration]. The
+  /// painter reads this via [LineChartData.crosshairAnchorX].
+  double? _crosshairCurrentX;
+
+  /// Whether a crosshair-easing frame callback is already queued.
+  bool _crosshairFrameScheduled = false;
+
+  /// Timestamp of the previous crosshair-ease frame; used for dt.
+  Duration? _crosshairLastFrameTime;
+
   final _lineChartHelper = LineChartHelper();
 
   @override
@@ -101,12 +116,13 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         lineChartData.lineTouchData.handleBuiltInTouches;
 
     return lineChartData.copyWith(
-      showingTooltipIndicators:
-          touchEnabled ? _showingTouchedTooltips : null,
+      showingTooltipIndicators: touchEnabled ? _showingTouchedTooltips : null,
+      crosshairAnchorX: _crosshairCurrentX,
       lineBarsData: List.generate(lineChartData.lineBarsData.length, (i) {
         final barData = lineChartData.lineBarsData[i];
-        final touchedIndicators =
-            touchEnabled ? (_showingTouchedIndicators[i] ?? const <int>[]) : null;
+        final touchedIndicators = touchEnabled
+            ? (_showingTouchedIndicators[i] ?? const <int>[])
+            : null;
         return barData.copyWith(
           showingIndicators: touchedIndicators,
           glowAnchor: _glowData[i],
@@ -163,6 +179,10 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
+        // Crosshair disappears immediately on release — no fade-out.
+        _crosshairTargetX = null;
+        _crosshairCurrentX = null;
+        _crosshairLastFrameTime = null;
       });
       return;
     }
@@ -172,6 +192,9 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
       setState(() {
         _showingTouchedTooltips.clear();
         _showingTouchedIndicators.clear();
+        _crosshairTargetX = null;
+        _crosshairCurrentX = null;
+        _crosshairLastFrameTime = null;
       });
       return;
     }
@@ -185,6 +208,10 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
         _showingTouchedIndicators[touched.barIndex] = [touched.spotIndex];
         _setGlowTargetForBar(touched.barIndex, Offset(touched.x, touched.y));
       }
+      // Use the first touched spot's x as the crosshair anchor. Spots
+      // across bars typically share x for a given touch, so this is
+      // representative.
+      _setCrosshairTarget(spots.first.x);
 
       _showingTouchedTooltips
         ..clear()
@@ -192,13 +219,89 @@ class _LineChartState extends AnimatedWidgetBaseState<LineChart> {
     });
   }
 
+  /// Updates the crosshair target. Snaps the eased current to target on
+  /// the first set (so the crosshair appears at the touched x without a
+  /// glide-in from nowhere). Otherwise schedules an easing frame.
+  void _setCrosshairTarget(double target) {
+    _crosshairTargetX = target;
+    if (_crosshairCurrentX == null) {
+      _crosshairCurrentX = target;
+      return;
+    }
+    if (_crosshairCurrentX != target) {
+      _scheduleCrosshairFrame();
+    }
+  }
+
+  void _scheduleCrosshairFrame() {
+    if (_crosshairFrameScheduled || !mounted) {
+      return;
+    }
+    if (_crosshairTargetX == null) {
+      return;
+    }
+    _crosshairFrameScheduled = true;
+    SchedulerBinding.instance
+      ..scheduleFrameCallback((timestamp) {
+        _crosshairFrameScheduled = false;
+        if (!mounted) {
+          return;
+        }
+        _onCrosshairFrame(timestamp);
+      })
+      ..scheduleFrame();
+  }
+
+  /// Eases [_crosshairCurrentX] toward [_crosshairTargetX] using an
+  /// exponential blend so the glide is frame-rate independent.
+  void _onCrosshairFrame(Duration timestamp) {
+    final target = _crosshairTargetX;
+    final current = _crosshairCurrentX;
+    if (target == null || current == null) {
+      _crosshairLastFrameTime = null;
+      return;
+    }
+
+    final dt = _crosshairLastFrameTime == null
+        ? 1 / 60
+        : (timestamp - _crosshairLastFrameTime!).inMicroseconds / 1e6;
+    _crosshairLastFrameTime = timestamp;
+
+    final tau = _crosshairFollowDurationSeconds();
+    if (tau <= 0) {
+      setState(() => _crosshairCurrentX = target);
+      _crosshairLastFrameTime = null;
+      return;
+    }
+
+    final blend = (1 - math.exp(-dt / tau)).clamp(0.0, 1.0);
+    final next = current + (target - current) * blend;
+    setState(() => _crosshairCurrentX = next);
+
+    final range = _dataRange();
+    final epsilon = range * 1e-4;
+    if ((target - next).abs() > epsilon) {
+      _scheduleCrosshairFrame();
+    } else {
+      // Snap to target to settle exactly on the spot's x.
+      setState(() => _crosshairCurrentX = target);
+      _crosshairLastFrameTime = null;
+    }
+  }
+
+  double _crosshairFollowDurationSeconds() {
+    final crosshair = widget.data.lineTouchData.crosshair;
+    if (crosshair == null) return 0;
+    return crosshair.followDuration.inMicroseconds / 1e6;
+  }
+
   /// Reads programmatic [LineChartBarData.showingIndicators] and updates
   /// [_glowDataTarget] for any bar whose selected spot changed since the
   /// last build. Lets the snake animation also fire when callers drive
   /// the selection through widget data instead of touch events.
   void _syncGlowTargetsFromWidgetData(LineChartData data) {
-    final touchEnabled = data.lineTouchData.enabled &&
-        data.lineTouchData.handleBuiltInTouches;
+    final touchEnabled =
+        data.lineTouchData.enabled && data.lineTouchData.handleBuiltInTouches;
     for (var i = 0; i < data.lineBarsData.length; i++) {
       // Skip bars that are currently being driven by touch — those targets
       // are already maintained in [_handleBuiltInTouch], and overriding

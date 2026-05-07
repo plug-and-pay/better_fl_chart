@@ -59,6 +59,7 @@ class LineChartData extends AxisChartData with EquatableMixin {
     super.clipData = const FlClipData.none(),
     super.backgroundColor,
     super.rotationQuarterTurns,
+    this.crosshairAnchorX,
   }) : super(
           minX: minX ?? double.nan,
           maxX: maxX ?? double.nan,
@@ -82,6 +83,12 @@ class LineChartData extends AxisChartData with EquatableMixin {
   /// An important point is that you have to disable the default touch behaviour
   /// to show the tooltip manually, see [LineTouchData.handleBuiltInTouches].
   final List<ShowingTooltipIndicators> showingTooltipIndicators;
+
+  /// Eased x-position (in data space) for the touch crosshair. Written by
+  /// the [LineChart] state while the user is touching the chart and
+  /// [LineTouchData.crosshair] is configured. When null, the painter falls
+  /// back to drawing the crosshair at each touched spot's x.
+  final double? crosshairAnchorX;
 
   /// Lerps a [BaseChartData] based on [t] value, check [Tween.lerp].
   @override
@@ -110,6 +117,7 @@ class LineChartData extends AxisChartData with EquatableMixin {
         lineTouchData: b.lineTouchData,
         showingTooltipIndicators: b.showingTooltipIndicators,
         rotationQuarterTurns: b.rotationQuarterTurns,
+        crosshairAnchorX: lerpDouble(a.crosshairAnchorX, b.crosshairAnchorX, t),
       );
     } else {
       throw Exception('Illegal State');
@@ -137,6 +145,7 @@ class LineChartData extends AxisChartData with EquatableMixin {
     FlClipData? clipData,
     Color? backgroundColor,
     int? rotationQuarterTurns,
+    double? crosshairAnchorX,
   }) =>
       LineChartData(
         lineBarsData: lineBarsData ?? this.lineBarsData,
@@ -158,6 +167,7 @@ class LineChartData extends AxisChartData with EquatableMixin {
         clipData: clipData ?? this.clipData,
         backgroundColor: backgroundColor ?? this.backgroundColor,
         rotationQuarterTurns: rotationQuarterTurns ?? this.rotationQuarterTurns,
+        crosshairAnchorX: crosshairAnchorX ?? this.crosshairAnchorX,
       );
 
   /// Used for equality check, see [EquatableMixin].
@@ -181,6 +191,7 @@ class LineChartData extends AxisChartData with EquatableMixin {
         clipData,
         backgroundColor,
         rotationQuarterTurns,
+        crosshairAnchorX,
       ];
 }
 
@@ -1119,13 +1130,19 @@ class LineTouchData extends FlTouchData<LineTouchResponse> with EquatableMixin {
 class TouchCrosshair with EquatableMixin {
   const TouchCrosshair({
     this.line = const FlLine(color: Colors.black26),
+    this.followDuration = Duration.zero,
   });
 
   /// Stroke style for the crosshair line.
   final FlLine line;
 
+  /// How quickly the crosshair eases toward the touched spot's x as the
+  /// finger moves across spots. [Duration.zero] (default) snaps instantly.
+  /// Larger values make the crosshair lag behind / glide smoothly.
+  final Duration followDuration;
+
   @override
-  List<Object?> get props => [line];
+  List<Object?> get props => [line, followDuration];
 }
 
 /// Used for showing touch indicators (a thicker line and larger dot on the targeted spot).

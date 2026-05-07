@@ -1338,6 +1338,54 @@ void main() {
       expect(results[0]['paint_stroke_width'], 4);
     });
 
+    test('uses crosshairAnchorX when set instead of touched-spot x', () {
+      const viewSize = Size(400, 400);
+
+      // Touched spot is at x=2, but the eased anchor is at x=3 (mid-glide).
+      final lineChartBarData = LineChartBarData(
+        spots: const [FlSpot.zero, FlSpot(2, 2), FlSpot(4, 4)],
+        showingIndicators: [1],
+      );
+      final data = LineChartData(
+        minX: 0,
+        maxX: 4,
+        minY: 0,
+        maxY: 4,
+        lineBarsData: [lineChartBarData],
+        lineTouchData: const LineTouchData(crosshair: TouchCrosshair()),
+        crosshairAnchorX: 3,
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      final results = <Offset>[];
+      when(
+        mockCanvasWrapper.drawDashedLine(
+          captureAny,
+          captureAny,
+          captureAny,
+          any,
+        ),
+      ).thenAnswer((inv) {
+        results.add(inv.positionalArguments[0] as Offset);
+      });
+
+      lineChartPainter.drawTouchCrosshair(
+        mockCanvasWrapper,
+        getDrawingInfo(data),
+        holder,
+      );
+
+      // x=3 in [0,4] at width 400 → pixel x = 300.
+      expect(results.length, 1);
+      expect(results.single.dx, 300);
+    });
+
     test('de-duplicates lines drawn at the same pixel-x', () {
       const viewSize = Size(400, 400);
 
