@@ -1020,6 +1020,7 @@ class LineTouchData extends FlTouchData<LineTouchResponse> with EquatableMixin {
     this.handleBuiltInTouches = true,
     this.getTouchLineStart = defaultGetTouchLineStart,
     this.getTouchLineEnd = defaultGetTouchLineEnd,
+    this.crosshair,
   }) : super(
           enabled,
           touchCallback,
@@ -1051,6 +1052,14 @@ class LineTouchData extends FlTouchData<LineTouchResponse> with EquatableMixin {
   /// If line end is overlap with the dot, it will be automatically adjusted to the edge of the dot.
   final GetTouchLineY getTouchLineEnd;
 
+  /// If non-null, a full-height vertical line is drawn at the touched spot's
+  /// x-position while the user is actively touching the chart. The line
+  /// spans the full plot area height, independent of the touched spot's y.
+  ///
+  /// Rendered in addition to [getTouchedSpotIndicator], so the existing
+  /// short indicator + dot keep working alongside it.
+  final TouchCrosshair? crosshair;
+
   /// Copies current [LineTouchData] to a new [LineTouchData],
   /// and replaces provided values.
   LineTouchData copyWith({
@@ -1065,6 +1074,7 @@ class LineTouchData extends FlTouchData<LineTouchResponse> with EquatableMixin {
     GetTouchLineY? getTouchLineStart,
     GetTouchLineY? getTouchLineEnd,
     bool? handleBuiltInTouches,
+    TouchCrosshair? crosshair,
   }) =>
       LineTouchData(
         enabled: enabled ?? this.enabled,
@@ -1079,6 +1089,7 @@ class LineTouchData extends FlTouchData<LineTouchResponse> with EquatableMixin {
         getTouchLineStart: getTouchLineStart ?? this.getTouchLineStart,
         getTouchLineEnd: getTouchLineEnd ?? this.getTouchLineEnd,
         handleBuiltInTouches: handleBuiltInTouches ?? this.handleBuiltInTouches,
+        crosshair: crosshair ?? this.crosshair,
       );
 
   /// Used for equality check, see [EquatableMixin].
@@ -1095,7 +1106,26 @@ class LineTouchData extends FlTouchData<LineTouchResponse> with EquatableMixin {
         handleBuiltInTouches,
         getTouchLineStart,
         getTouchLineEnd,
+        crosshair,
       ];
+}
+
+/// Configures the full-height touch crosshair on [LineTouchData.crosshair].
+///
+/// The crosshair is a vertical line drawn at the touched spot's x-position,
+/// spanning the full plot-area height. It only appears while the chart has
+/// touched spots (i.e. between pointer-down and pointer-up).
+@immutable
+class TouchCrosshair with EquatableMixin {
+  const TouchCrosshair({
+    this.line = const FlLine(color: Colors.black26),
+  });
+
+  /// Stroke style for the crosshair line.
+  final FlLine line;
+
+  @override
+  List<Object?> get props => [line];
 }
 
 /// Used for showing touch indicators (a thicker line and larger dot on the targeted spot).

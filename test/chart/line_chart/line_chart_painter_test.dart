@@ -1184,6 +1184,198 @@ void main() {
     });
   });
 
+  group('drawTouchCrosshair()', () {
+    List<LineIndexDrawingInfo> getDrawingInfo(LineChartData data) {
+      final lineIndexDrawingInfo = <LineIndexDrawingInfo>[];
+      for (var i = 0; i < data.lineBarsData.length; i++) {
+        final barData = data.lineBarsData[i];
+        if (!barData.show) continue;
+        final indicatorsData = data.lineTouchData
+            .getTouchedSpotIndicator(barData, barData.showingIndicators);
+        for (var j = 0; j < barData.showingIndicators.length; j++) {
+          final indicatorData = indicatorsData[j];
+          final index = barData.showingIndicators[j];
+          final spot = barData.spots[index];
+          if (indicatorData == null) continue;
+          lineIndexDrawingInfo.add(
+            LineIndexDrawingInfo(barData, i, spot, index, indicatorData),
+          );
+        }
+      }
+      return lineIndexDrawingInfo;
+    }
+
+    test('not painted when crosshair is null', () {
+      const viewSize = Size(400, 400);
+
+      const spot = FlSpot(2, 2);
+      final lineChartBarData = LineChartBarData(
+        spots: const [spot],
+        showingIndicators: [0],
+      );
+      final data = LineChartData(
+        minX: 0,
+        maxX: 4,
+        minY: 0,
+        maxY: 4,
+        lineBarsData: [lineChartBarData],
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawTouchCrosshair(
+        mockCanvasWrapper,
+        getDrawingInfo(data),
+        holder,
+      );
+
+      verifyNever(mockCanvasWrapper.drawDashedLine(any, any, any, any));
+    });
+
+    test('not painted when no touched spots', () {
+      const viewSize = Size(400, 400);
+
+      final lineChartBarData = LineChartBarData(spots: const [FlSpot(2, 2)]);
+      final data = LineChartData(
+        minX: 0,
+        maxX: 4,
+        minY: 0,
+        maxY: 4,
+        lineBarsData: [lineChartBarData],
+        lineTouchData: const LineTouchData(crosshair: TouchCrosshair()),
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawTouchCrosshair(
+        mockCanvasWrapper,
+        getDrawingInfo(data),
+        holder,
+      );
+
+      verifyNever(mockCanvasWrapper.drawDashedLine(any, any, any, any));
+    });
+
+    test('paints a single full-height line at the touched spot pixel-x', () {
+      const viewSize = Size(400, 400);
+
+      const spot = FlSpot(2, 2);
+      final lineChartBarData = LineChartBarData(
+        spots: const [FlSpot.zero, spot, FlSpot(4, 4)],
+        showingIndicators: [1],
+      );
+      final data = LineChartData(
+        minX: 0,
+        maxX: 4,
+        minY: 0,
+        maxY: 4,
+        lineBarsData: [lineChartBarData],
+        lineTouchData: const LineTouchData(
+          crosshair: TouchCrosshair(
+            line: FlLine(
+              color: Color(0xFF112233),
+              strokeWidth: 4,
+            ),
+          ),
+        ),
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      final results = <Map<String, dynamic>>[];
+      when(
+        mockCanvasWrapper.drawDashedLine(
+          captureAny,
+          captureAny,
+          captureAny,
+          any,
+        ),
+      ).thenAnswer((inv) {
+        results.add({
+          'from': inv.positionalArguments[0] as Offset,
+          'to': inv.positionalArguments[1] as Offset,
+          'paint_color': (inv.positionalArguments[2] as Paint).color,
+          'paint_stroke_width':
+              (inv.positionalArguments[2] as Paint).strokeWidth,
+        });
+      });
+
+      lineChartPainter.drawTouchCrosshair(
+        mockCanvasWrapper,
+        getDrawingInfo(data),
+        holder,
+      );
+
+      expect(results.length, 1);
+      final from = results[0]['from'] as Offset;
+      final to = results[0]['to'] as Offset;
+
+      // x=2 in a [0,4] domain at width 400 → pixel x = 200
+      expect(from.dx, 200);
+      expect(to.dx, 200);
+      // Spans full chart height
+      expect(from.dy, 0);
+      expect(to.dy, viewSize.height);
+      expect(
+        (results[0]['paint_color'] as Color).toARGB32(),
+        const Color(0xFF112233).toARGB32(),
+      );
+      expect(results[0]['paint_stroke_width'], 4);
+    });
+
+    test('de-duplicates lines drawn at the same pixel-x', () {
+      const viewSize = Size(400, 400);
+
+      // Two bars touched at the same x (=2) → one crosshair line.
+      final bar1 = LineChartBarData(
+        spots: const [FlSpot(2, 1)],
+        showingIndicators: [0],
+      );
+      final bar2 = LineChartBarData(
+        spots: const [FlSpot(2, 3)],
+        showingIndicators: [0],
+      );
+      final data = LineChartData(
+        minX: 0,
+        maxX: 4,
+        minY: 0,
+        maxY: 4,
+        lineBarsData: [bar1, bar2],
+        lineTouchData: const LineTouchData(crosshair: TouchCrosshair()),
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawTouchCrosshair(
+        mockCanvasWrapper,
+        getDrawingInfo(data),
+        holder,
+      );
+
+      verify(mockCanvasWrapper.drawDashedLine(any, any, any, any)).called(1);
+    });
+  });
+
   group('generateBarPath()', () {
     test('test 1', () {
       const viewSize = Size(100, 100);

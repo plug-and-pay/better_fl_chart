@@ -37,6 +37,8 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       ..style = PaintingStyle.stroke
       ..color = Colors.black;
 
+    _crosshairPaint = Paint()..style = PaintingStyle.stroke;
+
     _bgTouchTooltipPaint = Paint()
       ..style = PaintingStyle.fill
       ..color = Colors.white;
@@ -54,6 +56,7 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
   late Paint _barAreaLinesPaint;
   late Paint _clearBarAreaPaint;
   late Paint _touchLinePaint;
+  late Paint _crosshairPaint;
   late Paint _bgTouchTooltipPaint;
   late Paint _borderTouchTooltipPaint;
   late Paint _clipPaint;
@@ -145,6 +148,8 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     }
 
     drawTouchedSpotsIndicator(canvasWrapper, lineIndexDrawingInfo, holder);
+
+    drawTouchCrosshair(canvasWrapper, lineIndexDrawingInfo, holder);
 
     if (data.clipData.any || holder.chartVirtualRect != null) {
       canvasWrapper.restore();
@@ -522,6 +527,50 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       if (showingDots) {
         canvasWrapper.drawDot(dotPainter, spot, touchedSpot);
       }
+    }
+  }
+
+  /// Draws a full plot-area-height vertical line at each touched spot's
+  /// x-position when [LineTouchData.crosshair] is configured.
+  @visibleForTesting
+  void drawTouchCrosshair(
+    CanvasWrapper canvasWrapper,
+    List<LineIndexDrawingInfo> lineIndexDrawingInfo,
+    PaintHolder<LineChartData> holder,
+  ) {
+    final crosshair = holder.data.lineTouchData.crosshair;
+    if (crosshair == null || lineIndexDrawingInfo.isEmpty) {
+      return;
+    }
+    final viewSize = canvasWrapper.size;
+    final line = crosshair.line;
+
+    // De-dup: multiple bars touched at the same x should only draw one line.
+    final drawnXs = <double>{};
+    for (final info in lineIndexDrawingInfo) {
+      final pixelX = getPixelX(info.spot.x, viewSize, holder);
+      if (!drawnXs.add(pixelX)) {
+        continue;
+      }
+      final from = Offset(pixelX, 0);
+      final to = Offset(pixelX, viewSize.height);
+
+      _crosshairPaint
+        ..setColorOrGradientForLine(
+          line.color,
+          line.gradient,
+          from: from,
+          to: to,
+        )
+        ..strokeWidth = line.strokeWidth
+        ..transparentIfWidthIsZero();
+
+      canvasWrapper.drawDashedLine(
+        from,
+        to,
+        _crosshairPaint,
+        line.dashArray,
+      );
     }
   }
 
