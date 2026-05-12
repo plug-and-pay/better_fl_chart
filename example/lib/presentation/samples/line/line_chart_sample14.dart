@@ -2,9 +2,10 @@ import 'package:better_fl_chart/better_fl_chart.dart';
 import 'package:fl_chart_app/presentation/resources/app_resources.dart';
 import 'package:flutter/material.dart';
 
-/// Demonstrates [LineChartBarData.clipProgress] — the line draws itself in
-/// like a pencil from left to right when the sample mounts. The fill area,
-/// shadow, and dots reveal in lockstep with the moving pencil tip.
+/// Demonstrates [LineChartBarData.clipStart] and [LineChartBarData.clipProgress]:
+/// "Draw in" animates `clipProgress` 0 → 1 for a left-to-right pencil reveal.
+/// "Draw out" animates `clipStart` 0 → 1 so the line erases from the left
+/// while the right tail stays anchored at the last spot.
 class LineChartSample14 extends StatefulWidget {
   const LineChartSample14({super.key});
 
@@ -13,22 +14,34 @@ class LineChartSample14 extends StatefulWidget {
 }
 
 class _LineChartSample14State extends State<LineChartSample14> {
-  double _progress = 0;
+  double _clipStart = 0;
+  double _clipProgress = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _drawIn());
+  }
+
+  void _drawIn() {
+    setState(() {
+      _clipStart = 0;
+      _clipProgress = 0;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() => _progress = 1);
+      setState(() => _clipProgress = 1);
     });
   }
 
-  void _replay() {
-    setState(() => _progress = 0);
+  void _drawOut() {
+    setState(() {
+      _clipStart = 0;
+      _clipProgress = 1;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() => _progress = 1);
+      setState(() => _clipStart = 1);
     });
   }
 
@@ -53,7 +66,8 @@ class _LineChartSample14State extends State<LineChartSample14> {
                 gridData: const FlGridData(show: false),
                 lineBarsData: [
                   LineChartBarData(
-                    clipProgress: _progress,
+                    clipStart: _clipStart,
+                    clipProgress: _clipProgress,
                     spots: const [
                       FlSpot(0, 1),
                       FlSpot(1.5, 2.5),
@@ -103,10 +117,21 @@ class _LineChartSample14State extends State<LineChartSample14> {
           ),
         ),
         const SizedBox(height: 18),
-        ElevatedButton.icon(
-          onPressed: _replay,
-          icon: const Icon(Icons.replay_rounded),
-          label: const Text('Replay'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _drawIn,
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text('Draw In'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: _drawOut,
+              icon: const Icon(Icons.swipe_right_rounded),
+              label: const Text('Draw Out'),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
       ],

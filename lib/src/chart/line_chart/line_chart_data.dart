@@ -273,6 +273,7 @@ class LineChartBarData with EquatableMixin {
     this.lineChartStepData = const LineChartStepData(),
     this.glowData = const LineGlowData(),
     this.glowAnchor,
+    this.clipStart = 0.0,
     this.clipProgress = 1.0,
   })  : color =
             color ?? ((color == null && gradient == null) ? Colors.cyan : null),
@@ -426,10 +427,31 @@ class LineChartBarData with EquatableMixin {
   /// in [showingIndicators].
   final Offset? glowAnchor;
 
-  /// Trims this line to its first [clipProgress] fraction along the path
-  /// (clamped to 0.0..1.0). Useful for a "pencil drawing" left-to-right
-  /// reveal. 1.0 (the default) means the line is fully drawn; 0.0 hides
-  /// it entirely.
+  /// Left edge of the line's visible portion as a fraction of the path
+  /// (clamped to 0.0..1.0). Default 0.0 means the line starts at its
+  /// leftmost spot. Pairs with [clipProgress] (the right edge): the
+  /// visible region is the path between [clipStart] and [clipProgress].
+  ///
+  /// Drive [clipStart] from 0.0 to 1.0 with [clipProgress] pinned at 1.0
+  /// to play a "draw out" effect — the line erases from the left while
+  /// the right tail stays anchored at its last spot. The opposite of the
+  /// [clipProgress] pencil reveal; useful when transitioning away from a
+  /// chart. Animating both fields in lockstep with an offset produces a
+  /// sliding window across the line.
+  ///
+  /// Like [clipProgress], lerped through the chart's implicit animation,
+  /// so changing this via setState plays the effect over the chart's
+  /// [LineChart.duration].
+  final double clipStart;
+
+  /// Right edge of the line's visible portion as a fraction of the path
+  /// (clamped to 0.0..1.0). Default 1.0 means the line is fully drawn;
+  /// 0.0 hides the line entirely. Pairs with [clipStart] (the left
+  /// edge): the visible region is the path between [clipStart] and
+  /// [clipProgress].
+  ///
+  /// Drive [clipProgress] from 0.0 to 1.0 with [clipStart] at 0.0 for a
+  /// "pencil drawing" left-to-right reveal.
   ///
   /// Affects the line stroke, shadow, area fills (below/above) and dots —
   /// dots become visible once the pencil tip has reached their x. The
@@ -484,6 +506,7 @@ class LineChartBarData with EquatableMixin {
             LineChartStepData.lerp(a.lineChartStepData, b.lineChartStepData, t),
         glowData: LineGlowData.lerp(a.glowData, b.glowData, t),
         glowAnchor: Offset.lerp(a.glowAnchor, b.glowAnchor, t),
+        clipStart: lerpDouble(a.clipStart, b.clipStart, t) ?? 0.0,
         clipProgress: lerpDouble(a.clipProgress, b.clipProgress, t) ?? 1.0,
       );
 
@@ -515,6 +538,7 @@ class LineChartBarData with EquatableMixin {
     LineChartStepData? lineChartStepData,
     LineGlowData? glowData,
     Offset? glowAnchor,
+    double? clipStart,
     double? clipProgress,
   }) =>
       LineChartBarData(
@@ -545,6 +569,7 @@ class LineChartBarData with EquatableMixin {
         lineChartStepData: lineChartStepData ?? this.lineChartStepData,
         glowData: glowData ?? this.glowData,
         glowAnchor: glowAnchor ?? this.glowAnchor,
+        clipStart: clipStart ?? this.clipStart,
         clipProgress: clipProgress ?? this.clipProgress,
       );
 
@@ -579,6 +604,7 @@ class LineChartBarData with EquatableMixin {
         // it silently freezes the glow at whatever position was live on
         // the first paint.
         glowAnchor,
+        clipStart,
         clipProgress,
       ];
 }

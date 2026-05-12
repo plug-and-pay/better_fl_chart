@@ -251,4 +251,49 @@ void main() {
       expect(LineChartBarData.lerp(a, b, 1).clipProgress, closeTo(0.8, 1e-9));
     });
   });
+
+  group('LineChartBarData.clipStart', () {
+    const spots = [FlSpot.zero, FlSpot(1, 1)];
+
+    test('defaults to 0.0', () {
+      final bar = LineChartBarData(spots: spots);
+      expect(bar.clipStart, 0.0);
+    });
+
+    test('copyWith carries the value over and overrides it', () {
+      final bar = LineChartBarData(spots: spots, clipStart: 0.25);
+      expect(bar.copyWith().clipStart, 0.25);
+      expect(bar.copyWith(clipStart: 0.75).clipStart, 0.75);
+    });
+
+    test('equality reflects clipStart', () {
+      final a = LineChartBarData(spots: spots, clipStart: 0.4);
+      final b = LineChartBarData(spots: spots, clipStart: 0.4);
+      final c = LineChartBarData(spots: spots, clipStart: 0.6);
+      expect(a == b, true);
+      expect(a == c, false);
+    });
+
+    test('lerp interpolates clipStart linearly', () {
+      final a = LineChartBarData(spots: spots, clipStart: 0.2);
+      final b = LineChartBarData(spots: spots, clipStart: 0.8);
+      expect(LineChartBarData.lerp(a, b, 0).clipStart, closeTo(0.2, 1e-9));
+      expect(LineChartBarData.lerp(a, b, 0.5).clipStart, closeTo(0.5, 1e-9));
+      expect(LineChartBarData.lerp(a, b, 1).clipStart, closeTo(0.8, 1e-9));
+    });
+
+    test('clipStart and clipProgress are independent', () {
+      final bar = LineChartBarData(
+        spots: spots,
+        clipStart: 0.3,
+        clipProgress: 0.7,
+      );
+      final copy = bar.copyWith();
+      expect(copy.clipStart, 0.3);
+      expect(copy.clipProgress, 0.7);
+      final overridden = bar.copyWith(clipStart: 0.1);
+      expect(overridden.clipStart, 0.1);
+      expect(overridden.clipProgress, 0.7);
+    });
+  });
 }

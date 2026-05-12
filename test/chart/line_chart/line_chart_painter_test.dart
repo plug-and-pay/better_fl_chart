@@ -609,12 +609,12 @@ void main() {
       final clipResult = verify(mockCanvasWrapper.clipRect(captureAny))
         ..called(1);
       final clipRect = clipResult.captured.single as Rect;
-      expect(clipRect.left, 0);
+      expect(clipRect.left, greaterThanOrEqualTo(0));
       expect(clipRect.top, 0);
       expect(clipRect.height, viewSize.height);
       // The trim ends before the chart's full width.
-      expect(clipRect.width, lessThan(viewSize.width));
-      expect(clipRect.width, greaterThan(0));
+      expect(clipRect.right, lessThan(viewSize.width));
+      expect(clipRect.right, greaterThan(clipRect.left));
 
       verify(mockCanvasWrapper.save()).called(1);
       verify(mockCanvasWrapper.restore()).called(1);
@@ -629,6 +629,106 @@ void main() {
       final barData = LineChartBarData(
         spots: const [flSpot1, flSpot2, FlSpot(20, 11), FlSpot(11, 11)],
         clipProgress: 0,
+      );
+
+      final data = LineChartData(
+        lineBarsData: [barData],
+        minX: 0,
+        maxX: 20,
+        minY: 0,
+        maxY: 20,
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawBarLine(mockCanvasWrapper, barData, holder);
+
+      verifyNever(mockCanvasWrapper.drawPath(any, any));
+      verifyNever(mockCanvasWrapper.clipRect(any));
+    });
+
+    test('clipStart > 0 clips fills with a non-zero left edge', () {
+      const viewSize = Size(400, 400);
+
+      // Monotonic spots so the tail/head x's are well-ordered.
+      final barData = LineChartBarData(
+        spots: const [FlSpot(0, 1), FlSpot(5, 2), FlSpot(10, 4), FlSpot(20, 6)],
+        belowBarData: BarAreaData(show: true),
+        clipStart: 0.5,
+      );
+
+      final data = LineChartData(
+        lineBarsData: [barData],
+        minX: 0,
+        maxX: 20,
+        minY: 0,
+        maxY: 20,
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawBarLine(mockCanvasWrapper, barData, holder);
+
+      final clipResult = verify(mockCanvasWrapper.clipRect(captureAny))
+        ..called(1);
+      final clipRect = clipResult.captured.single as Rect;
+      // The tail has moved right; the head stays at the line's natural end.
+      expect(clipRect.left, greaterThan(viewSize.width / 4));
+      expect(clipRect.right, greaterThan(clipRect.left));
+      expect(clipRect.top, 0);
+      expect(clipRect.bottom, viewSize.height);
+
+      verify(mockCanvasWrapper.save()).called(1);
+      verify(mockCanvasWrapper.restore()).called(1);
+      verify(mockCanvasWrapper.drawPath(any, any)).called(2);
+    });
+
+    test('clipStart >= clipProgress draws nothing', () {
+      const viewSize = Size(400, 400);
+
+      final barData = LineChartBarData(
+        spots: const [flSpot1, flSpot2, FlSpot(20, 11), FlSpot(11, 11)],
+        clipStart: 0.6,
+        clipProgress: 0.5,
+      );
+
+      final data = LineChartData(
+        lineBarsData: [barData],
+        minX: 0,
+        maxX: 20,
+        minY: 0,
+        maxY: 20,
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawBarLine(mockCanvasWrapper, barData, holder);
+
+      verifyNever(mockCanvasWrapper.drawPath(any, any));
+      verifyNever(mockCanvasWrapper.clipRect(any));
+    });
+
+    test('clipStart = 1.0 draws nothing (fully drawn-out)', () {
+      const viewSize = Size(400, 400);
+
+      final barData = LineChartBarData(
+        spots: const [flSpot1, flSpot2, FlSpot(20, 11), FlSpot(11, 11)],
+        clipStart: 1,
       );
 
       final data = LineChartData(

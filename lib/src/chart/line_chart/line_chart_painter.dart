@@ -117,24 +117,27 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       drawBarLine(canvasWrapper, barData, holder);
 
       // Dots reveal in lockstep with the line: clip them to the bar's
-      // pencil-tip x-extent so they only appear once the head has
-      // reached their spot. Uses the bar's x-extent (not path length)
+      // visible window. Uses the bar's x-extent (not path length)
       // because dots live in data space — the two metrics coincide for
       // typical near-horizontal time-series lines.
-      final dotsProgress = barData.clipProgress.clamp(0.0, 1.0);
-      final clippingDots = dotsProgress < 1.0;
-      if (clippingDots) {
-        final viewSize = canvasWrapper.size;
-        final leftX = getPixelX(barData.mostLeftSpot.x, viewSize, holder);
-        final rightX = getPixelX(barData.mostRightSpot.x, viewSize, holder);
-        final headX = leftX + (rightX - leftX) * dotsProgress;
-        canvasWrapper
-          ..save()
-          ..clipRect(Rect.fromLTWH(0, 0, headX, viewSize.height));
-      }
-      drawDots(canvasWrapper, barData, holder);
-      if (clippingDots) {
-        canvasWrapper.restore();
+      final dotsStart = barData.clipStart.clamp(0.0, 1.0);
+      final dotsEnd = barData.clipProgress.clamp(0.0, 1.0);
+      final clippingDots = dotsStart > 0.0 || dotsEnd < 1.0;
+      if (!clippingDots || dotsEnd > dotsStart) {
+        if (clippingDots) {
+          final viewSize = canvasWrapper.size;
+          final leftX = getPixelX(barData.mostLeftSpot.x, viewSize, holder);
+          final rightX = getPixelX(barData.mostRightSpot.x, viewSize, holder);
+          final tailX = leftX + (rightX - leftX) * dotsStart;
+          final headX = leftX + (rightX - leftX) * dotsEnd;
+          canvasWrapper
+            ..save()
+            ..clipRect(Rect.fromLTRB(tailX, 0, headX, viewSize.height));
+        }
+        drawDots(canvasWrapper, barData, holder);
+        if (clippingDots) {
+          canvasWrapper.restore();
+        }
       }
 
       if (data.extraLinesData.extraLinesOnTop) {
@@ -267,12 +270,14 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     // bar is passed in separately from barData
     // because barData is the whole line
     // and bar is a piece of that line
-    final progress = barData.clipProgress.clamp(0.0, 1.0);
-    if (progress <= 0.0) {
-      return;
-    }
+    final start = barData.clipStart.clamp(0.0, 1.0);
+    final end = barData.clipProgress.clamp(0.0, 1.0);
 
     for (final bar in barList) {
+      if (end <= start) {
+        continue;
+      }
+
       final barPath = generateBarPath(viewSize, barData, bar, holder);
 
       final belowBarPath =
@@ -296,28 +301,37 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
         fillCompletely: true,
       );
 
-      // Trim the line (and shadow) by path length so the cut end still
-      // shows the bar's stroke cap — the "pencil tip" look. Fills are
-      // clipped by a vertical rect at the same pixel-x for visual
-      // alignment with the tip.
+      // Trim the line (and shadow) by path length so each cut end still
+      // shows the bar's stroke cap. Fills are rect-clipped to the same
+      // horizontal extent so they align with the trimmed line.
       var strokePath = barPath;
+      double? tailPixelX;
       double? headPixelX;
-      if (progress < 1.0) {
+      if (start > 0.0 || end < 1.0) {
         final metrics = barPath.computeMetrics().toList();
         if (metrics.isNotEmpty) {
           final m = metrics.first;
-          final cut = m.length * progress;
-          headPixelX = m.getTangentForOffset(cut)?.position.dx;
-          strokePath = Path()..addPath(m.extractPath(0, cut), Offset.zero);
+          final cutStart = m.length * start;
+          final cutEnd = m.length * end;
+          tailPixelX = m.getTangentForOffset(cutStart)?.position.dx;
+          headPixelX = m.getTangentForOffset(cutEnd)?.position.dx;
+          strokePath = Path()
+            ..addPath(m.extractPath(cutStart, cutEnd), Offset.zero);
         }
       }
 
-      final clippingFills = progress < 1.0 && headPixelX != null;
+      final clippingFills = (start > 0.0 || end < 1.0) &&
+          tailPixelX != null &&
+          headPixelX != null;
       if (clippingFills) {
+        // Order the rect so non-monotonic lines (paths that fold back on
+        // themselves) still produce a well-formed clip rect.
+        final left = min(tailPixelX, headPixelX);
+        final right = max(tailPixelX, headPixelX);
         canvasWrapper
           ..save()
           ..clipRect(
-            Rect.fromLTWH(0, 0, headPixelX, canvasWrapper.size.height),
+            Rect.fromLTRB(left, 0, right, canvasWrapper.size.height),
           );
       }
 
