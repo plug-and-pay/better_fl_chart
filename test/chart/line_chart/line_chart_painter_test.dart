@@ -555,6 +555,102 @@ void main() {
         isSameColorAs(barData.gradient?.colors.first ?? barData.color!),
       );
     });
+
+    test('clipProgress = 1.0 leaves drawing untouched', () {
+      const viewSize = Size(400, 400);
+
+      final barData = LineChartBarData(
+        spots: const [flSpot1, flSpot2, FlSpot(20, 11), FlSpot(11, 11)],
+      );
+
+      final data = LineChartData(lineBarsData: [barData]);
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawBarLine(mockCanvasWrapper, barData, holder);
+
+      verify(mockCanvasWrapper.drawPath(any, any)).called(1);
+      verifyNever(mockCanvasWrapper.save());
+      verifyNever(mockCanvasWrapper.clipRect(any));
+      verifyNever(mockCanvasWrapper.restore());
+    });
+
+    test('clipProgress in (0, 1) clips fills to a sub-width rect', () {
+      const viewSize = Size(400, 400);
+
+      final barData = LineChartBarData(
+        spots: const [flSpot1, flSpot2, FlSpot(20, 11), FlSpot(11, 11)],
+        belowBarData: BarAreaData(show: true),
+        clipProgress: 0.5,
+      );
+
+      final data = LineChartData(
+        lineBarsData: [barData],
+        minX: 0,
+        maxX: 20,
+        minY: 0,
+        maxY: 20,
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawBarLine(mockCanvasWrapper, barData, holder);
+
+      final clipResult = verify(mockCanvasWrapper.clipRect(captureAny))
+        ..called(1);
+      final clipRect = clipResult.captured.single as Rect;
+      expect(clipRect.left, 0);
+      expect(clipRect.top, 0);
+      expect(clipRect.height, viewSize.height);
+      // The trim ends before the chart's full width.
+      expect(clipRect.width, lessThan(viewSize.width));
+      expect(clipRect.width, greaterThan(0));
+
+      verify(mockCanvasWrapper.save()).called(1);
+      verify(mockCanvasWrapper.restore()).called(1);
+      // Line stroke is still drawn (with the trimmed path).
+      verify(mockCanvasWrapper.drawPath(any, any))
+          .called(2); // below fill + line
+    });
+
+    test('clipProgress = 0.0 short-circuits and skips drawing', () {
+      const viewSize = Size(400, 400);
+
+      final barData = LineChartBarData(
+        spots: const [flSpot1, flSpot2, FlSpot(20, 11), FlSpot(11, 11)],
+        clipProgress: 0,
+      );
+
+      final data = LineChartData(
+        lineBarsData: [barData],
+        minX: 0,
+        maxX: 20,
+        minY: 0,
+        maxY: 20,
+      );
+
+      final lineChartPainter = LineChartPainter();
+      final holder =
+          PaintHolder<LineChartData>(data, data, TextScaler.noScaling);
+      final mockCanvasWrapper = MockCanvasWrapper();
+      when(mockCanvasWrapper.size).thenAnswer((realInvocation) => viewSize);
+      when(mockCanvasWrapper.canvas).thenReturn(MockCanvas());
+
+      lineChartPainter.drawBarLine(mockCanvasWrapper, barData, holder);
+
+      verifyNever(mockCanvasWrapper.drawPath(any, any));
+      verifyNever(mockCanvasWrapper.clipRect(any));
+    });
   });
 
   group('drawBetweenBarsArea()', () {

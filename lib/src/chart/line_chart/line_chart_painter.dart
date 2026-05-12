@@ -115,7 +115,27 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
       }
 
       drawBarLine(canvasWrapper, barData, holder);
+
+      // Dots reveal in lockstep with the line: clip them to the bar's
+      // pencil-tip x-extent so they only appear once the head has
+      // reached their spot. Uses the bar's x-extent (not path length)
+      // because dots live in data space — the two metrics coincide for
+      // typical near-horizontal time-series lines.
+      final dotsProgress = barData.clipProgress.clamp(0.0, 1.0);
+      final clippingDots = dotsProgress < 1.0;
+      if (clippingDots) {
+        final viewSize = canvasWrapper.size;
+        final leftX = getPixelX(barData.mostLeftSpot.x, viewSize, holder);
+        final rightX = getPixelX(barData.mostRightSpot.x, viewSize, holder);
+        final headX = leftX + (rightX - leftX) * dotsProgress;
+        canvasWrapper
+          ..save()
+          ..clipRect(Rect.fromLTWH(0, 0, headX, viewSize.height));
+      }
       drawDots(canvasWrapper, barData, holder);
+      if (clippingDots) {
+        canvasWrapper.restore();
+      }
 
       if (data.extraLinesData.extraLinesOnTop) {
         super.drawExtraLines(context, canvasWrapper, holder);
@@ -247,6 +267,11 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
     // bar is passed in separately from barData
     // because barData is the whole line
     // and bar is a piece of that line
+    final progress = barData.clipProgress.clamp(0.0, 1.0);
+    if (progress <= 0.0) {
+      return;
+    }
+
     for (final bar in barList) {
       final barPath = generateBarPath(viewSize, barData, bar, holder);
 
@@ -271,6 +296,31 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
         fillCompletely: true,
       );
 
+      // Trim the line (and shadow) by path length so the cut end still
+      // shows the bar's stroke cap — the "pencil tip" look. Fills are
+      // clipped by a vertical rect at the same pixel-x for visual
+      // alignment with the tip.
+      var strokePath = barPath;
+      double? headPixelX;
+      if (progress < 1.0) {
+        final metrics = barPath.computeMetrics().toList();
+        if (metrics.isNotEmpty) {
+          final m = metrics.first;
+          final cut = m.length * progress;
+          headPixelX = m.getTangentForOffset(cut)?.position.dx;
+          strokePath = Path()..addPath(m.extractPath(0, cut), Offset.zero);
+        }
+      }
+
+      final clippingFills = progress < 1.0 && headPixelX != null;
+      if (clippingFills) {
+        canvasWrapper
+          ..save()
+          ..clipRect(
+            Rect.fromLTWH(0, 0, headPixelX, canvasWrapper.size.height),
+          );
+      }
+
       drawBelowBar(
         canvasWrapper,
         belowBarPath,
@@ -285,8 +335,13 @@ class LineChartPainter extends AxisChartPainter<LineChartData> {
         holder,
         barData,
       );
-      drawBarShadow(canvasWrapper, barPath, barData);
-      drawBar(canvasWrapper, barPath, barData, holder);
+
+      if (clippingFills) {
+        canvasWrapper.restore();
+      }
+
+      drawBarShadow(canvasWrapper, strokePath, barData);
+      drawBar(canvasWrapper, strokePath, barData, holder);
     }
   }
 

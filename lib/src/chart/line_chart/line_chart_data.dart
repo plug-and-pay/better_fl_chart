@@ -273,6 +273,7 @@ class LineChartBarData with EquatableMixin {
     this.lineChartStepData = const LineChartStepData(),
     this.glowData = const LineGlowData(),
     this.glowAnchor,
+    this.clipProgress = 1.0,
   })  : color =
             color ?? ((color == null && gradient == null) ? Colors.cyan : null),
         belowBarData = belowBarData ?? BarAreaData(),
@@ -425,6 +426,24 @@ class LineChartBarData with EquatableMixin {
   /// in [showingIndicators].
   final Offset? glowAnchor;
 
+  /// Trims this line to its first [clipProgress] fraction along the path
+  /// (clamped to 0.0..1.0). Useful for a "pencil drawing" left-to-right
+  /// reveal. 1.0 (the default) means the line is fully drawn; 0.0 hides
+  /// it entirely.
+  ///
+  /// Affects the line stroke, shadow, area fills (below/above) and dots —
+  /// dots become visible once the pencil tip has reached their x. The
+  /// line stroke and shadow are trimmed by path length so the cut end
+  /// shows the bar's [isStrokeCapRound] cap; fills and dots are clipped
+  /// by the head's x-extent. For the typical near-horizontal time-series
+  /// line, the two metrics coincide.
+  ///
+  /// Lerped through the chart's implicit animation: changing it from
+  /// 0.0 to 1.0 via setState (or by wrapping the chart in a
+  /// [TweenAnimationBuilder] / explicit [AnimationController]) plays the
+  /// reveal over the chart's [LineChart.duration].
+  final double clipProgress;
+
   /// Lerps a [LineChartBarData] based on [t] value, check [Tween.lerp].
   static LineChartBarData lerp(
     LineChartBarData a,
@@ -465,6 +484,7 @@ class LineChartBarData with EquatableMixin {
             LineChartStepData.lerp(a.lineChartStepData, b.lineChartStepData, t),
         glowData: LineGlowData.lerp(a.glowData, b.glowData, t),
         glowAnchor: Offset.lerp(a.glowAnchor, b.glowAnchor, t),
+        clipProgress: lerpDouble(a.clipProgress, b.clipProgress, t) ?? 1.0,
       );
 
   /// Copies current [LineChartBarData] to a new [LineChartBarData],
@@ -495,6 +515,7 @@ class LineChartBarData with EquatableMixin {
     LineChartStepData? lineChartStepData,
     LineGlowData? glowData,
     Offset? glowAnchor,
+    double? clipProgress,
   }) =>
       LineChartBarData(
         spots: spots ?? this.spots,
@@ -524,6 +545,7 @@ class LineChartBarData with EquatableMixin {
         lineChartStepData: lineChartStepData ?? this.lineChartStepData,
         glowData: glowData ?? this.glowData,
         glowAnchor: glowAnchor ?? this.glowAnchor,
+        clipProgress: clipProgress ?? this.clipProgress,
       );
 
   /// Used for equality check, see [EquatableMixin].
@@ -557,6 +579,7 @@ class LineChartBarData with EquatableMixin {
         // it silently freezes the glow at whatever position was live on
         // the first paint.
         glowAnchor,
+        clipProgress,
       ];
 }
 

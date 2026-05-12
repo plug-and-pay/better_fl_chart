@@ -220,4 +220,35 @@ void main() {
       );
     });
   });
+
+  group('LineChartBarData.clipProgress', () {
+    const spots = [FlSpot.zero, FlSpot(1, 1)];
+
+    test('defaults to 1.0', () {
+      final bar = LineChartBarData(spots: spots);
+      expect(bar.clipProgress, 1.0);
+    });
+
+    test('copyWith carries the value over and overrides it', () {
+      final bar = LineChartBarData(spots: spots, clipProgress: 0.25);
+      expect(bar.copyWith().clipProgress, 0.25);
+      expect(bar.copyWith(clipProgress: 0.75).clipProgress, 0.75);
+    });
+
+    test('equality reflects clipProgress', () {
+      final a = LineChartBarData(spots: spots, clipProgress: 0.4);
+      final b = LineChartBarData(spots: spots, clipProgress: 0.4);
+      final c = LineChartBarData(spots: spots, clipProgress: 0.6);
+      expect(a == b, true);
+      expect(a == c, false);
+    });
+
+    test('lerp interpolates clipProgress linearly', () {
+      final a = LineChartBarData(spots: spots, clipProgress: 0.2);
+      final b = LineChartBarData(spots: spots, clipProgress: 0.8);
+      expect(LineChartBarData.lerp(a, b, 0).clipProgress, closeTo(0.2, 1e-9));
+      expect(LineChartBarData.lerp(a, b, 0.5).clipProgress, closeTo(0.5, 1e-9));
+      expect(LineChartBarData.lerp(a, b, 1).clipProgress, closeTo(0.8, 1e-9));
+    });
+  });
 }
